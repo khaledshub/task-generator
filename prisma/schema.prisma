@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskFrequency {
+  ONE_OFF
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum TaskContext {
+  HOME
+  OUT
+  COMPUTER
+}
+
+enum TaskType {
+  CHORE
+  REPAIR
+  BUSINESS
+  HEALTH
+  SOCIAL
+  ADMIN
+}
+
+enum TaskEnergy {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum IntentMode {
+  CHILL
+  NORMAL
+  GRIND
+}
+
+enum PickAction {
+  PICKED
+  STARTED
+  DONE
+  SKIPPED
+}
+
+enum SkippedReason {
+  TOO_HARD
+  NO_TIME
+  NOT_TODAY
+  BLOCKED
+  OTHER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  tasks        Task[]
+  intents      DailyIntent[]
+  pickEvents   PickEvent[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model BootstrapProbe {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Task {
+  id                  String        @id @default(cuid())
+  userId              String
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title               String
+  description         String?
+  frequency           TaskFrequency @default(ONE_OFF)
+  context             TaskContext
+  type                TaskType
+  energy              TaskEnergy
+  timeEstimateMinutes Int
+  avoiding            Boolean       @default(false)
+  starterStep         String
+  checklistItems      Json
+  tips                Json
+  isArchived          Boolean       @default(false)
+  pickEvents          PickEvent[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@index([userId, isArchived])
+  @@index([userId, context, energy])
+}
+
+model DailyIntent {
+  id                   String      @id @default(cuid())
+  userId               String
+  user                 User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contextChoice        TaskContext
+  modeChoice           IntentMode
+  timeAvailableMinutes Int
+  pickEvents           PickEvent[]
+  createdAt            DateTime    @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model PickEvent {
+  id            String        @id @default(cuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId        String
+  task          Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  intentId      String?
+  intent        DailyIntent?  @relation(fields: [intentId], references: [id], onDelete: SetNull)
+  pickedAt      DateTime      @default(now())
+  action        PickAction
+  skippedReason SkippedReason?
+  notes         String?
+  why           String
+
+  @@index([userId, pickedAt])
+  @@index([taskId, pickedAt])
+  @@index([intentId])
+}

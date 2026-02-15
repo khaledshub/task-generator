@@ -1,0 +1,649 @@
+diff --git a/.gitignore b/.gitignore
+index 5ef6a52..a4d9786 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -12,6 +12,8 @@
+ 
+ # testing
+ /coverage
++/playwright-report
++/test-results
+ 
+ # next.js
+ /.next/
+@@ -39,3 +41,5 @@ yarn-error.log*
+ # typescript
+ *.tsbuildinfo
+ next-env.d.ts
++
++/src/generated/prisma
+diff --git a/README.md b/README.md
+index e215bc4..4f41a19 100644
+--- a/README.md
++++ b/README.md
+@@ -1,36 +1,156 @@
+-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
++# TodoList RandomGenerator
+ 
+-## Getting Started
++A production-style TypeScript monolith built with Next.js App Router, PostgreSQL, Prisma, NextAuth credentials auth, MUI, Vitest, Playwright, Docker, and structured server logging.
+ 
+-First, run the development server:
++The app helps users beat procrastination by selecting a weighted-random "best next task" based on:
++- Context: Home / Out / Computer
++- Mode: Chill / Normal / Grind
++- Time available: 10 / 30 / 60 minutes
+ 
++## Stack
++- Node.js 22
++- Next.js (App Router) + TypeScript
++- PostgreSQL 16
++- Prisma ORM + SQL migrations
++- Auth: NextAuth Credentials (email/password + bcrypt)
++- Validation: Zod
++- UI: Material UI (MUI)
++- Unit tests: Vitest
++- E2E tests: Playwright
++- Logging: pino
++- Containers: Docker multi-stage + docker-compose
++
++## Prerequisites
++- Node.js 22+
++- npm 10+
++- Docker + Docker Compose (for containerized run)
++
++## Environment Variables
++Create `.env` from `.env.example`.
++
++Required:
++- `DATABASE_URL`
++- `NEXTAUTH_SECRET`
++- `NEXTAUTH_URL`
++
++Optional:
++- `LOG_LEVEL` (`info` by default)
++
++### `.env.example`
++See `/Users/khaledahmed/GitHub/task-generator/.env.example`.
++
++## Scripts
++- `npm run dev` - start Next.js dev server (webpack)
++- `npm run build` - production build
++- `npm run start` - run built app
++- `npm run lint` - ESLint
++- `npm run prisma:generate` - generate Prisma client
++- `npm run db:migrate` - apply migrations (`prisma migrate deploy`)
++- `npm run db:seed` - seed connectivity probe row
++- `npm test` - unit tests (Vitest)
++- `npm run test:e2e` - Playwright E2E (smoke test is env-gated)
++
++## Local Development (without Docker app container)
++1. Install dependencies:
++```bash
++npm install
++```
++2. Start Postgres (example using Docker only for DB):
++```bash
++docker compose up -d postgres
++```
++3. Apply migrations and seed:
++```bash
++npm run db:migrate
++npm run db:seed
++```
++4. Start app:
+ ```bash
+ npm run dev
+-# or
+-yarn dev
+-# or
+-pnpm dev
+-# or
+-bun dev
+ ```
++5. Open [http://localhost:3000](http://localhost:3000)
++
++## Full Docker Run
++Run app + postgres together:
++```bash
++docker compose up --build
++```
++
++Startup behavior of `app` service:
++1. `npm run db:migrate`
++2. `npm run db:seed`
++3. `npm run start`
++
++App URL: [http://localhost:3000](http://localhost:3000)
+ 
+-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
++## Auth Flow
++- Sign up at `/signup`
++- Log in at `/login`
++- Protected area at `/app`
++
++## Main App Routes
++- `/` - public landing
++- `/login` - login
++- `/signup` - signup
++- `/app/tasks` - create/list/archive tasks
++- `/app/tasks/[taskId]` - task detail + quick actions + task event history
++- `/app/tasks/[taskId]/edit` - edit task
++- `/app/pick` - intent chooser + weighted pick + status actions
++- `/app/history` - event timeline
++
++## Tests
++### Unit tests
++```bash
++npm test
++```
+ 
+-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
++### E2E tests
++Default run:
++```bash
++npm run test:e2e
++```
+ 
+-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
++The smoke spec is gated by `RUN_E2E=1` to avoid false failures in environments without full DB/browser setup.
+ 
+-## Learn More
++Full smoke run example:
++```bash
++RUN_E2E=1 npm run test:e2e
++```
+ 
+-To learn more about Next.js, take a look at the following resources:
++## Picker Business Rules (MVP)
++- Context must match selected context.
++- Energy compatibility:
++  - `CHILL` -> `LOW` only
++  - `NORMAL` -> `LOW` / `MEDIUM`
++  - `GRIND` -> `LOW` / `MEDIUM` / `HIGH`
++- Time matching:
++  - strict: `task.timeEstimateMinutes <= selectedTime`
++  - fallback: allow up to `+15` minutes when strict pool is empty (with weight penalty)
++- Fairness weighting:
++  - boost tasks marked `avoiding=true`
++  - penalize tasks picked in last 3 picks
++  - penalize tasks completed in recent 7 days
++- Persists one-line "why" explanation at pick time in `PickEvent.why`.
+ 
+-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
++## Troubleshooting
++### Docker daemon not running
++If `docker compose up --build` fails with daemon connection errors, start Docker Desktop/daemon first.
+ 
+-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
++### Port 3000 already in use
++Stop the conflicting process or change published port in `docker-compose.yml`.
+ 
+-## Deploy on Vercel
++### Prisma connection errors
++- Verify `DATABASE_URL`
++- Ensure Postgres is reachable
++- Re-run:
++```bash
++npm run db:migrate
++npm run db:seed
++```
+ 
+-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
++### E2E tests skipped
++Expected unless `RUN_E2E=1` is set.
+ 
+-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
++## Documentation Map
++- Phase-by-phase notes: `/Users/khaledahmed/GitHub/task-generator/docs/PHASE_NOTES.md`
++- Detailed code map: `/Users/khaledahmed/GitHub/task-generator/docs/CODEMAP.md`
+diff --git a/package.json b/package.json
+index 16ca857..3c75391 100644
+--- a/package.json
++++ b/package.json
+@@ -2,24 +2,46 @@
+   "name": "task-generator",
+   "version": "0.1.0",
+   "private": true,
++  "engines": {
++    "node": ">=22.0.0"
++  },
+   "scripts": {
+-    "dev": "next dev",
+-    "build": "next build",
++    "dev": "next dev --webpack",
++    "build": "next build --webpack",
+     "start": "next start",
+-    "lint": "eslint"
++    "lint": "eslint",
++    "prisma:generate": "prisma generate",
++    "db:migrate": "prisma migrate deploy",
++    "db:seed": "node prisma/seed.mjs",
++    "test": "vitest run",
++    "test:e2e": "playwright test"
+   },
+   "dependencies": {
++    "@emotion/react": "^11.14.0",
++    "@emotion/styled": "^11.14.1",
++    "@mui/icons-material": "^7.3.8",
++    "@mui/material": "^7.3.8",
++    "@mui/material-nextjs": "^7.3.8",
++    "@prisma/client": "^6.14.0",
++    "bcryptjs": "^3.0.3",
+     "next": "16.1.6",
++    "next-auth": "^4.24.13",
++    "pino": "^10.3.1",
++    "prisma": "^6.14.0",
+     "react": "19.2.3",
+-    "react-dom": "19.2.3"
++    "react-dom": "19.2.3",
++    "zod": "^4.3.6"
+   },
+   "devDependencies": {
++    "@playwright/test": "^1.58.2",
+     "@types/node": "^20",
+     "@types/react": "^19",
+     "@types/react-dom": "^19",
+     "babel-plugin-react-compiler": "1.0.0",
+     "eslint": "^9",
+     "eslint-config-next": "16.1.6",
+-    "typescript": "^5"
++    "typescript": "^5",
++    "vite-tsconfig-paths": "^6.1.1",
++    "vitest": "^4.0.18"
+   }
+ }
+diff --git a/src/app/globals.css b/src/app/globals.css
+index e3734be..c064ec7 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -1,42 +1,17 @@
+-:root {
+-  --background: #ffffff;
+-  --foreground: #171717;
+-}
+-
+-@media (prefers-color-scheme: dark) {
+-  :root {
+-    --background: #0a0a0a;
+-    --foreground: #ededed;
+-  }
++* {
++  box-sizing: border-box;
+ }
+ 
+ html,
+ body {
+-  max-width: 100vw;
+-  overflow-x: hidden;
++  margin: 0;
++  padding: 0;
+ }
+ 
+ body {
+-  color: var(--foreground);
+-  background: var(--background);
+-  font-family: Arial, Helvetica, sans-serif;
+-  -webkit-font-smoothing: antialiased;
+-  -moz-osx-font-smoothing: grayscale;
+-}
+-
+-* {
+-  box-sizing: border-box;
+-  padding: 0;
+-  margin: 0;
++  min-height: 100vh;
+ }
+ 
+ a {
+   color: inherit;
+-  text-decoration: none;
+-}
+-
+-@media (prefers-color-scheme: dark) {
+-  html {
+-    color-scheme: dark;
+-  }
+ }
+diff --git a/src/app/layout.tsx b/src/app/layout.tsx
+index 42fc323..68eb085 100644
+--- a/src/app/layout.tsx
++++ b/src/app/layout.tsx
+@@ -1,20 +1,11 @@
+ import type { Metadata } from "next";
+-import { Geist, Geist_Mono } from "next/font/google";
++import { AppProviders } from "@/components/app-providers";
+ import "./globals.css";
+ 
+-const geistSans = Geist({
+-  variable: "--font-geist-sans",
+-  subsets: ["latin"],
+-});
+-
+-const geistMono = Geist_Mono({
+-  variable: "--font-geist-mono",
+-  subsets: ["latin"],
+-});
+-
+ export const metadata: Metadata = {
+-  title: "Create Next App",
+-  description: "Generated by create next app",
++  title: "TodoList RandomGenerator",
++  description:
++    "A weighted-random task picker to help you start the right next action.",
+ };
+ 
+ export default function RootLayout({
+@@ -24,8 +15,8 @@ export default function RootLayout({
+ }>) {
+   return (
+     <html lang="en">
+-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+-        {children}
++      <body>
++        <AppProviders>{children}</AppProviders>
+       </body>
+     </html>
+   );
+diff --git a/src/app/page.module.css b/src/app/page.module.css
+deleted file mode 100644
+index 59dea42..0000000
+--- a/src/app/page.module.css
++++ /dev/null
+@@ -1,141 +0,0 @@
+-.page {
+-  --background: #fafafa;
+-  --foreground: #fff;
+-
+-  --text-primary: #000;
+-  --text-secondary: #666;
+-
+-  --button-primary-hover: #383838;
+-  --button-secondary-hover: #f2f2f2;
+-  --button-secondary-border: #ebebeb;
+-
+-  display: flex;
+-  min-height: 100vh;
+-  align-items: center;
+-  justify-content: center;
+-  font-family: var(--font-geist-sans);
+-  background-color: var(--background);
+-}
+-
+-.main {
+-  display: flex;
+-  min-height: 100vh;
+-  width: 100%;
+-  max-width: 800px;
+-  flex-direction: column;
+-  align-items: flex-start;
+-  justify-content: space-between;
+-  background-color: var(--foreground);
+-  padding: 120px 60px;
+-}
+-
+-.intro {
+-  display: flex;
+-  flex-direction: column;
+-  align-items: flex-start;
+-  text-align: left;
+-  gap: 24px;
+-}
+-
+-.intro h1 {
+-  max-width: 320px;
+-  font-size: 40px;
+-  font-weight: 600;
+-  line-height: 48px;
+-  letter-spacing: -2.4px;
+-  text-wrap: balance;
+-  color: var(--text-primary);
+-}
+-
+-.intro p {
+-  max-width: 440px;
+-  font-size: 18px;
+-  line-height: 32px;
+-  text-wrap: balance;
+-  color: var(--text-secondary);
+-}
+-
+-.intro a {
+-  font-weight: 500;
+-  color: var(--text-primary);
+-}
+-
+-.ctas {
+-  display: flex;
+-  flex-direction: row;
+-  width: 100%;
+-  max-width: 440px;
+-  gap: 16px;
+-  font-size: 14px;
+-}
+-
+-.ctas a {
+-  display: flex;
+-  justify-content: center;
+-  align-items: center;
+-  height: 40px;
+-  padding: 0 16px;
+-  border-radius: 128px;
+-  border: 1px solid transparent;
+-  transition: 0.2s;
+-  cursor: pointer;
+-  width: fit-content;
+-  font-weight: 500;
+-}
+-
+-a.primary {
+-  background: var(--text-primary);
+-  color: var(--background);
+-  gap: 8px;
+-}
+-
+-a.secondary {
+-  border-color: var(--button-secondary-border);
+-}
+-
+-/* Enable hover only on non-touch devices */
+-@media (hover: hover) and (pointer: fine) {
+-  a.primary:hover {
+-    background: var(--button-primary-hover);
+-    border-color: transparent;
+-  }
+-
+-  a.secondary:hover {
+-    background: var(--button-secondary-hover);
+-    border-color: transparent;
+-  }
+-}
+-
+-@media (max-width: 600px) {
+-  .main {
+-    padding: 48px 24px;
+-  }
+-
+-  .intro {
+-    gap: 16px;
+-  }
+-
+-  .intro h1 {
+-    font-size: 32px;
+-    line-height: 40px;
+-    letter-spacing: -1.92px;
+-  }
+-}
+-
+-@media (prefers-color-scheme: dark) {
+-  .logo {
+-    filter: invert();
+-  }
+-
+-  .page {
+-    --background: #000;
+-    --foreground: #000;
+-
+-    --text-primary: #ededed;
+-    --text-secondary: #999;
+-
+-    --button-primary-hover: #ccc;
+-    --button-secondary-hover: #1a1a1a;
+-    --button-secondary-border: #1a1a1a;
+-  }
+-}
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index 7b947a2..25ad392 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -1,66 +1,87 @@
+-import Image from "next/image";
+-import styles from "./page.module.css";
++import {
++  Alert,
++  AppBar,
++  Box,
++  Button,
++  Chip,
++  Container,
++  Paper,
++  Stack,
++  Toolbar,
++  Typography,
++} from "@mui/material";
++import prisma from "@/lib/prisma";
++
++const BOOTSTRAP_PROBE_KEY = "phase1-connectivity";
++
++/**
++ * Reads the bootstrap probe row that seed writes during container startup.
++ * Returns null when the database is unavailable or the probe has not been seeded.
++ */
++async function getBootstrapProbe() {
++  try {
++    return await prisma.bootstrapProbe.findUnique({
++      where: { key: BOOTSTRAP_PROBE_KEY },
++    });
++  } catch {
++    return null;
++  }
++}
++
++export default async function HomePage() {
++  const probe = await getBootstrapProbe();
+ 
+-export default function Home() {
+   return (
+-    <div className={styles.page}>
+-      <main className={styles.main}>
+-        <Image
+-          className={styles.logo}
+-          src="/next.svg"
+-          alt="Next.js logo"
+-          width={100}
+-          height={20}
+-          priority
+-        />
+-        <div className={styles.intro}>
+-          <h1>To get started, edit the page.tsx file.</h1>
+-          <p>
+-            Looking for a starting point or more instructions? Head over to{" "}
+-            <a
+-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+-              target="_blank"
+-              rel="noopener noreferrer"
+-            >
+-              Templates
+-            </a>{" "}
+-            or the{" "}
+-            <a
+-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+-              target="_blank"
+-              rel="noopener noreferrer"
+-            >
+-              Learning
+-            </a>{" "}
+-            center.
+-          </p>
+-        </div>
+-        <div className={styles.ctas}>
+-          <a
+-            className={styles.primary}
+-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
+-            target="_blank"
+-            rel="noopener noreferrer"
+-          >
+-            <Image
+-              className={styles.logo}
+-              src="/vercel.svg"
+-              alt="Vercel logomark"
+-              width={16}
+-              height={16}
+-            />
+-            Deploy Now
+-          </a>
+-          <a
+-            className={styles.secondary}
+-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
+-            target="_blank"
+-            rel="noopener noreferrer"
+-          >
+-            Documentation
+-          </a>
+-        </div>
+-      </main>
+-    </div>
++    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
++      <AppBar position="static" color="inherit" elevation={0}>
++        <Toolbar>
++          <Typography variant="h6" fontWeight={700} sx={{ flexGrow: 1 }}>
++            TodoList RandomGenerator
++          </Typography>
++          <Chip label="Phase 1" color="primary" size="small" />
++        </Toolbar>
++      </AppBar>
++
++      <Container maxWidth="md" sx={{ py: 6 }}>
++        <Stack spacing={3}>
++          <Paper sx={{ p: 4 }}>
++            <Stack spacing={2}>
++              <Typography variant="h4" component="h1" fontWeight={700}>
++                Monolith bootstrap is running
++              </Typography>
++              <Typography color="text.secondary">
++                This starter includes Next.js App Router, MUI, Prisma, and
++                Postgres wiring with credentials authentication for the
++                TodoList RandomGenerator app.
++              </Typography>
++
++              {probe ? (
++                <Alert severity="success">
++                  Prisma connectivity probe found: <strong>{probe.key}</strong> at{" "}
++                  {new Date(probe.updatedAt).toLocaleString()}
++                </Alert>
++              ) : (
++                <Alert severity="warning">
++                  Connectivity probe not found yet. Run <code>npm run db:seed</code>
++                  after migrations.
++                </Alert>
++              )}
++
++              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
++                <Button href="/signup" variant="contained">
++                  Create account
++                </Button>
++                <Button href="/login" variant="outlined">
++                  Log in
++                </Button>
++                <Button href="/" variant="text">
++                  Refresh status
++                </Button>
++              </Stack>
++            </Stack>
++          </Paper>
++        </Stack>
++      </Container>
++    </Box>
+   );
+ }
