@@ -866,3 +866,127 @@ Behavior update:
 Purpose:
 - No business-logic code changes were introduced in Phase 6.
 - Changes were limited to operational documentation (`README.md`) and env template polish (`.env.example`).
+
+## `src/components/ui/app-snackbar-provider.tsx`
+Purpose:
+- Global snackbar infrastructure with enqueue-style API for client UX feedback.
+
+Exported functions/classes/constants:
+- `AppSnackbarProvider({ children })`
+- `useAppSnackbar()`
+- Types: `AppSnackbarOptions`
+- Internal constant: `DEFAULT_AUTO_HIDE_MS`
+
+Function details:
+- `AppSnackbarProvider({ children })`
+  - Responsibility: host snackbar queue state, render one active snackbar, process queued messages.
+  - Inputs/outputs: React children -> provider + snackbar renderer.
+  - Side effects: UI notifications only.
+  - Key rules/edge cases:
+    - sequential queue processing via `TransitionProps.onExited`.
+    - default severity is `info`.
+  - Extend/tweak:
+    - change queue behavior, anchor position, or default duration here.
+- `useAppSnackbar()`
+  - Responsibility: expose `enqueueSnackbar(message, options)` to client components.
+  - Inputs/outputs: none -> context API.
+  - Side effects: throws if called outside provider.
+
+Constant details:
+- `DEFAULT_AUTO_HIDE_MS`
+  - Meaning: fallback snackbar visible duration.
+  - Used in: `Snackbar.autoHideDuration` fallback.
+  - Safe values/constraints: keep between ~1500 and ~6000ms for usability.
+
+## `src/components/ui/app-dialog.tsx`
+Purpose:
+- Accessible shared dialog wrapper for modal workflows.
+
+Exported functions/classes/constants:
+- `AppDialog({...})`
+
+Function details:
+- `AppDialog({...})`
+  - Responsibility: render standardized dialog shell with title, optional description, and close control.
+  - Inputs/outputs:
+    - inputs: `open`, `onClose`, `title`, `description`, `maxWidth`, `fullWidth`, `children`
+    - output: configured MUI `Dialog`.
+  - Side effects: modal open/close UI behavior.
+  - Key rules/edge cases:
+    - uses generated unique ids for `aria-labelledby` and `aria-describedby`.
+    - close button routes through shared `onClose` callback.
+  - Extend/tweak:
+    - adjust sizing defaults or title/action layout here.
+
+## `src/components/ui/app-drawer.tsx`
+Purpose:
+- Accessible shared drawer wrapper for in-place workflows.
+
+Exported functions/classes/constants:
+- `AppDrawer({...})`
+
+Function details:
+- `AppDrawer({...})`
+  - Responsibility: render standardized drawer shell with dialog semantics and close controls.
+  - Inputs/outputs:
+    - inputs: `open`, `onClose`, `title`, `description`, `anchor`, `width`, `children`
+    - output: configured MUI `Drawer`.
+  - Side effects: modal-like drawer UI behavior.
+  - Key rules/edge cases:
+    - sets dialog ARIA attributes on drawer paper.
+    - width constrained to viewport.
+  - Extend/tweak:
+    - change default anchor, width, or keepMounted behavior.
+
+## `src/components/tasks/tasks-ux-shell.tsx`
+Purpose:
+- Phase-1 UX scaffolding on tasks page to validate dialog/drawer/snackbar primitives without changing core task flow.
+
+Exported functions/classes/constants:
+- `TasksUxShell({ createAction, defaultValues })`
+
+Function details:
+- `TasksUxShell({ createAction, defaultValues })`
+  - Responsibility:
+    - render preview actions to open modal and drawer
+    - render existing `TaskForm` inside reusable dialog
+    - emit snackbar feedback on modal open.
+  - Inputs/outputs:
+    - `createAction` (existing create server action), `defaultValues` (task form defaults)
+    - returns client UI shell.
+  - Side effects:
+    - invokes existing create server action when modal form submits.
+    - emits snackbar events.
+  - Key rules/edge cases:
+    - existing inline create section remains available in parallel.
+  - Extend/tweak:
+    - this is the main handoff point for Phase 2 migration to primary modal create UX.
+
+## `src/components/app-providers.tsx` (Phase-1 UX update)
+Purpose:
+- Updated provider composition to include global snackbar infrastructure.
+
+Behavior update:
+- `AppProviders` now wraps children with `AppSnackbarProvider` under `ThemeProvider`.
+
+## `src/app/app/tasks/page.tsx` (Phase-1 UX update)
+Purpose:
+- Updated tasks page to mount shared UX shell preview without removing existing flows.
+
+Behavior update:
+- Added `TasksUxShell` mount with existing create action + defaults.
+- Existing inline create form and list/edit/archive behavior remain unchanged.
+
+## Quick UX Tweak Pointers (Phase 1)
+- Snackbar defaults and queueing:
+  - file: `src/components/ui/app-snackbar-provider.tsx`
+  - symbols: `DEFAULT_AUTO_HIDE_MS`, `enqueueSnackbar`, `processNext`
+- Shared modal accessibility/sizing:
+  - file: `src/components/ui/app-dialog.tsx`
+  - symbol: `AppDialog`
+- Shared drawer accessibility/sizing:
+  - file: `src/components/ui/app-drawer.tsx`
+  - symbol: `AppDrawer`
+- Tasks page UX shell behavior:
+  - file: `src/components/tasks/tasks-ux-shell.tsx`
+  - symbol: `TasksUxShell`

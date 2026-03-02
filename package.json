@@ -14,7 +14,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node prisma/seed.mjs",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "CI=1 playwright test --reporter=line"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

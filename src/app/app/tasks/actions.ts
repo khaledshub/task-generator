@@ -8,7 +8,7 @@ import { logger } from "@/lib/logger";
 import type { TaskFormState } from "@/lib/tasks/types";
 import { taskFormDataToInput } from "@/lib/validation/task";
 
-const DEFAULT_FORM_STATE: TaskFormState = { status: "idle" };
+const DEFAULT_FORM_STATE: TaskFormState = { statusState: "idle" };
 
 /**
  * Creates a task for the authenticated user.
@@ -39,10 +39,11 @@ export async function createTaskAction(
       "Task created",
     );
 
+    revalidatePath("/app");
     revalidatePath("/app/tasks");
 
     return {
-      status: "success",
+      statusState: "success",
       message: "Task created.",
     };
   } catch (error) {
@@ -76,7 +77,7 @@ export async function updateTaskAction(
 
     if (updateResult.count === 0) {
       return {
-        status: "error",
+        statusState: "error",
         message: "Task not found.",
       };
     }
@@ -85,7 +86,7 @@ export async function updateTaskAction(
     revalidatePath(`/app/tasks/${taskId}/edit`);
 
     return {
-      status: "success",
+      statusState: "success",
       message: "Task updated.",
     };
   } catch (error) {
@@ -118,13 +119,13 @@ export async function archiveTaskAction(taskId: string): Promise<void> {
 function toTaskFormError(error: unknown): TaskFormState {
   if (error instanceof ZodError) {
     return {
-      status: "error",
+      statusState: "error",
       message: error.issues[0]?.message ?? "Invalid task input.",
     };
   }
 
   return {
-    status: "error",
+    statusState: "error",
     message: "Something went wrong while saving the task.",
   };
 }

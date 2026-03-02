@@ -12,7 +12,7 @@ import {
 } from "@/lib/tasks/config";
 
 export interface TaskFormState {
-  status: "idle" | "success" | "error";
+  statusState: "idle" | "success" | "error";
   message?: string;
 }
 

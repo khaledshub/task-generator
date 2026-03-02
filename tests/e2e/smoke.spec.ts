@@ -1,15 +1,29 @@
 import { expect, test } from "@playwright/test";
+import { PrismaClient } from "@prisma/client";
 
-const runE2E = process.env.RUN_E2E === "1";
+const prisma = new PrismaClient();
+const E2E_EMAIL_PREFIX = "e2e-smoke-";
 
 test.describe("TodoList RandomGenerator smoke", () => {
-  test.skip(!runE2E, "Set RUN_E2E=1 with Postgres and migrations running.");
+  test.beforeAll(async () => {
+    await prisma.user.deleteMany({
+      where: {
+        email: {
+          startsWith: E2E_EMAIL_PREFIX,
+        },
+      },
+    });
+  });
+
+  test.afterAll(async () => {
+    await prisma.$disconnect();
+  });
 
   test("signup -> login -> create task -> pick -> done -> history", async ({
     page,
   }) => {
-    const uniqueId = Date.now();
-    const email = `e2e-${uniqueId}@example.com`;
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const email = `${E2E_EMAIL_PREFIX}${uniqueId}@example.com`;
     const password = "Password123";
     const taskTitle = `E2E Task ${uniqueId}`;
 
@@ -28,12 +42,18 @@ test.describe("TodoList RandomGenerator smoke", () => {
     await expect(page).toHaveURL(/\/app$/);
 
     await page.goto("/app/tasks");
-    await page.locator('input[name="title"]').first().fill(taskTitle);
+    await page.getByRole("button", { name: "New task modal" }).click();
     await page
+      .getByRole("dialog")
+      .locator('input[name="title"]')
+      .first()
+      .fill(taskTitle);
+    await page
+      .getByRole("dialog")
       .locator('input[name="starterStep"]')
       .first()
       .fill("Start the task in 2 minutes");
-    await page.getByRole("button", { name: "Create task" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Create task" }).click();
     await expect(page.getByText("Task created.")).toBeVisible();
 
     await page.goto("/app/pick");

@@ -9,18 +9,15 @@ import {
 } from "@mui/material";
 import prisma from "@/lib/prisma";
 import { requireSessionUserId } from "@/lib/auth/session";
-import { TaskForm } from "@/components/tasks/task-form";
+import { HomeCreateTaskSpotlight } from "@/components/tasks/home-create-task-spotlight";
 import {
   TASK_CONTEXT_LABELS,
   TASK_ENERGY_LABELS,
   TASK_FREQUENCY_LABELS,
   TASK_TYPE_LABELS,
 } from "@/lib/tasks/config";
-import {
-  DEFAULT_TASK_FORM_VALUES,
-  toStringArray,
-} from "@/lib/tasks/types";
-import { archiveTaskAction, createTaskAction } from "./actions";
+import { toStringArray } from "@/lib/tasks/types";
+import { archiveTaskAction } from "./actions";
 
 export default async function TasksPage() {
   const userId = await requireSessionUserId();
@@ -45,24 +42,18 @@ export default async function TasksPage() {
             Tasks
           </Typography>
           <Typography color="text.secondary">
-            Create tasks with context tags so the picker can choose from the
-            right bucket later.
+            Build a high-quality pool of tasks and let the picker choose the
+            best next action based on your current context.
           </Typography>
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
-        <Stack spacing={2}>
-          <Typography variant="h5" component="h2" fontWeight={700}>
-            Create task
-          </Typography>
-          <TaskForm
-            action={createTaskAction}
-            initialValues={DEFAULT_TASK_FORM_VALUES}
-            submitLabel="Create task"
-          />
-        </Stack>
-      </Paper>
+      <HomeCreateTaskSpotlight
+        title="Task command center"
+        description="Create a task in-place without leaving this page. Saved tasks are linked to your account and available across sessions."
+        buttonLabel="New task modal"
+        showEnhancements
+      />
 
       <Paper sx={{ p: 3 }}>
         <Stack spacing={2}>

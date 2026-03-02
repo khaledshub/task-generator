@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   Alert,
@@ -12,7 +12,9 @@ import {
   MenuItem,
   Select,
   Stack,
+  Switch,
   TextField,
+  Typography,
 } from "@mui/material";
 import {
   TASK_CONTEXTS,
@@ -34,21 +36,32 @@ interface TaskFormProps {
   ) => Promise<TaskFormState>;
   initialValues: TaskFormValues;
   submitLabel: string;
+  onStateChange?: (state: TaskFormState) => void;
 }
 
-const INITIAL_STATE: TaskFormState = { status: "idle" };
+const INITIAL_STATE: TaskFormState = { statusState: "idle" };
 
-export function TaskForm({ action, initialValues, submitLabel }: TaskFormProps) {
+export function TaskForm({
+  action,
+  initialValues,
+  submitLabel,
+  onStateChange,
+}: TaskFormProps) {
   const [state, formAction] = useActionState(action, INITIAL_STATE);
+  const [isGenerateStepsEnabled, setIsGenerateStepsEnabled] = useState(false);
+
+  useEffect(() => {
+    onStateChange?.(state);
+  }, [onStateChange, state]);
 
   return (
     <form action={formAction}>
       <Stack spacing={2.5}>
-        {state.status === "error" ? (
+        {state.statusState === "error" ? (
           <Alert severity="error">{state.message}</Alert>
         ) : null}
 
-        {state.status === "success" ? (
+        {state.statusState === "success" ? (
           <Alert severity="success">{state.message}</Alert>
         ) : null}
 
@@ -151,13 +164,30 @@ export function TaskForm({ action, initialValues, submitLabel }: TaskFormProps) 
           </FormControl>
         </Stack>
 
-        <TextField
-          name="starterStep"
-          label="2-minute starter step"
-          required
-          defaultValue={initialValues.starterStep}
-          helperText="Required. This is the tiny first move that gets you started."
-        />
+        <Stack spacing={1}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="body2" color="text.secondary">
+              Generate todo steps
+            </Typography>
+            <Switch
+              checked={isGenerateStepsEnabled}
+              onChange={(event) => setIsGenerateStepsEnabled(event.target.checked)}
+              inputProps={{ "aria-label": "Generate todo steps" }}
+            />
+          </Stack>
+
+          <TextField
+            name="starterStep"
+            label="2-minute starter step"
+            required
+            defaultValue={initialValues.starterStep}
+            helperText={
+              isGenerateStepsEnabled
+                ? "AI generation UI is enabled. Backend integration will be connected next."
+                : "Required. This is the tiny first move that gets you started."
+            }
+          />
+        </Stack>
 
         <TextField
           name="checklistItems"

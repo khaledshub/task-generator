@@ -14,23 +14,33 @@ export default async function ProtectedAppLayout({
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
-      <AppBar position="static" color="inherit" elevation={0}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "transparent" }}>
+      <AppBar
+        position="sticky"
+        color="inherit"
+        elevation={0}
+        sx={{
+          bgcolor: "rgba(248, 255, 252, 0.82)",
+          backdropFilter: "blur(10px)",
+          borderBottom: "1px solid",
+          borderColor: "rgba(15, 118, 110, 0.15)",
+        }}
+      >
         <Toolbar sx={{ gap: 2 }}>
-          <Typography variant="h6" fontWeight={700} sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
             TodoList RandomGenerator
           </Typography>
           <Stack direction="row" spacing={1}>
-            <Button href="/app" color="inherit" variant="text">
+            <Button href="/app" color="inherit" variant="outlined" size="small">
               Home
             </Button>
-            <Button href="/app/tasks" color="inherit" variant="text">
+            <Button href="/app/tasks" color="inherit" variant="outlined" size="small">
               Tasks
             </Button>
-            <Button href="/app/pick" color="inherit" variant="text">
+            <Button href="/app/pick" color="inherit" variant="outlined" size="small">
               Pick
             </Button>
-            <Button href="/app/history" color="inherit" variant="text">
+            <Button href="/app/history" color="inherit" variant="outlined" size="small">
               History
             </Button>
           </Stack>
