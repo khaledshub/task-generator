@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   Alert,
@@ -17,7 +17,12 @@ import {
   Typography,
 } from "@mui/material";
 import {
+  DEFAULT_TASK_TIPS,
+  LOCAL_AI_MODELS,
+  LOCAL_AI_MODEL_LABELS,
   TASK_CONTEXTS,
+  TASK_AI_PROVIDERS,
+  TASK_AI_PROVIDER_LABELS,
   TASK_CONTEXT_LABELS,
   TASK_ENERGIES,
   TASK_ENERGY_LABELS,
@@ -48,11 +53,102 @@ export function TaskForm({
   onStateChange,
 }: TaskFormProps) {
   const [state, formAction] = useActionState(action, INITIAL_STATE);
-  const [isGenerateStepsEnabled, setIsGenerateStepsEnabled] = useState(false);
+  const [localAiStatus, setLocalAiStatus] = useState<TaskFormState["aiStatus"]>();
+  const [localAiMessage, setLocalAiMessage] = useState<string>();
+  const [lastAiTaskId, setLastAiTaskId] = useState<string>();
+  const aiRequestKeyRef = useRef<string | null>(null);
+  const [isGenerateStepsEnabled, setIsGenerateStepsEnabled] = useState(
+    initialValues.generateAiStepsEnabled,
+  );
+  const [aiProvider, setAiProvider] = useState(initialValues.aiProvider);
+  const [localModel, setLocalModel] = useState<(typeof LOCAL_AI_MODELS)[number]>(
+    LOCAL_AI_MODELS[0],
+  );
+  const [tipsValue, setTipsValue] = useState(() =>
+    toInitialTipsValue(initialValues.tips, initialValues.generateAiStepsEnabled),
+  );
+  const defaultTipsText = initialValues.tips.join("\n");
+  const nonDefaultTipsText = removeDefaultTips(initialValues.tips).join("\n");
 
   useEffect(() => {
-    onStateChange?.(state);
-  }, [onStateChange, state]);
+    const effectiveState: TaskFormState = {
+      ...state,
+      aiStatus: localAiStatus ?? state.aiStatus,
+      aiMessage: localAiMessage ?? state.aiMessage,
+    };
+
+    onStateChange?.(effectiveState);
+  }, [localAiMessage, localAiStatus, onStateChange, state]);
+
+  useEffect(() => {
+    const request = state.aiGenerationRequest;
+    if (!request || state.statusState !== "success") {
+      return;
+    }
+
+    const requestKey = `${request.taskId}:${request.aiProvider}`;
+    if (aiRequestKeyRef.current === requestKey) {
+      return;
+    }
+    aiRequestKeyRef.current = requestKey;
+
+    void (async () => {
+      setLocalAiStatus("info");
+      const sourceLabel =
+        request.aiProvider === "LOCAL" && request.localModel
+          ? `${TASK_AI_PROVIDER_LABELS[request.aiProvider]} (${request.localModel})`
+          : TASK_AI_PROVIDER_LABELS[request.aiProvider];
+      setLocalAiMessage(`Generating AI tips with ${sourceLabel}...`);
+      setLastAiTaskId(request.taskId);
+
+      try {
+        const response = await fetch("/api/ai/starter-step", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(request),
+        });
+
+        const data = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          tips?: string[];
+        };
+
+        if (!response.ok) {
+          setLocalAiStatus("error");
+          setLocalAiMessage(
+            data.error ??
+              `AI generation failed after task save (${TASK_AI_PROVIDER_LABELS[request.aiProvider]}).`,
+          );
+          return;
+        }
+
+        if (Array.isArray(data.tips) && data.tips.length > 0) {
+          setTipsValue(data.tips.join("\n"));
+        }
+
+        setLocalAiStatus("success");
+        const successSourceLabel =
+          request.aiProvider === "LOCAL" && request.localModel
+            ? `${TASK_AI_PROVIDER_LABELS[request.aiProvider]} (${request.localModel})`
+            : TASK_AI_PROVIDER_LABELS[request.aiProvider];
+        setLocalAiMessage(
+          `AI response ready. Tips were generated with ${successSourceLabel} and applied.`,
+        );
+      } catch (error) {
+        setLocalAiStatus("error");
+        setLocalAiMessage(
+          error instanceof Error
+            ? error.message
+            : `AI generation failed after task save (${TASK_AI_PROVIDER_LABELS[request.aiProvider]}).`,
+        );
+      }
+    })();
+  }, [state.aiGenerationRequest, state.statusState]);
+
+  const aiTipsStatus = localAiStatus ?? state.aiStatus;
+  const aiTipsMessage = localAiMessage ?? state.aiMessage;
 
   return (
     <form action={formAction}>
@@ -63,6 +159,26 @@ export function TaskForm({
 
         {state.statusState === "success" ? (
           <Alert severity="success">{state.message}</Alert>
+        ) : null}
+
+        {aiTipsStatus === "success" && aiTipsMessage ? (
+          <Alert
+            severity="success"
+            action={
+              lastAiTaskId ? (
+                <Button
+                  color="inherit"
+                  size="small"
+                  href={`/app/tasks/${lastAiTaskId}`}
+                  sx={{ fontWeight: 700 }}
+                >
+                  Jump to task details
+                </Button>
+              ) : undefined
+            }
+          >
+            {aiTipsMessage}
+          </Alert>
         ) : null}
 
         <TextField
@@ -165,15 +281,70 @@ export function TaskForm({
         </Stack>
 
         <Stack spacing={1}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="body2" color="text.secondary">
-              Generate todo steps
-            </Typography>
-            <Switch
-              checked={isGenerateStepsEnabled}
-              onChange={(event) => setIsGenerateStepsEnabled(event.target.checked)}
-              inputProps={{ "aria-label": "Generate todo steps" }}
-            />
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="body2" color="text.secondary">
+                Generate todo steps
+              </Typography>
+              <Switch
+                name="generateAiStepsEnabled"
+                checked={isGenerateStepsEnabled}
+                onChange={(event) => {
+                  const nextChecked = event.target.checked;
+                  setIsGenerateStepsEnabled(nextChecked);
+                  setTipsValue((current) => {
+                    if (nextChecked && current.trim() === defaultTipsText.trim()) {
+                      return nonDefaultTipsText;
+                    }
+
+                    if (!nextChecked && current.trim().length === 0) {
+                      return defaultTipsText;
+                    }
+
+                    return current;
+                  });
+                }}
+                inputProps={{ "aria-label": "Generate todo steps" }}
+              />
+            </Stack>
+            <FormControl sx={{ minWidth: 180 }} size="small" disabled={!isGenerateStepsEnabled}>
+              <InputLabel id="ai-provider-label">AI source</InputLabel>
+              <Select
+                name="aiProvider"
+                labelId="ai-provider-label"
+                label="AI source"
+                value={aiProvider}
+                onChange={(event) => {
+                  setAiProvider(event.target.value as typeof TASK_AI_PROVIDERS[number]);
+                }}
+              >
+                {TASK_AI_PROVIDERS.map((provider) => (
+                  <MenuItem key={provider} value={provider}>
+                    {TASK_AI_PROVIDER_LABELS[provider]}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {isGenerateStepsEnabled && aiProvider === "LOCAL" ? (
+              <FormControl sx={{ minWidth: 190 }} size="small">
+                <InputLabel id="local-model-label">Local model</InputLabel>
+                <Select
+                  name="localModel"
+                  labelId="local-model-label"
+                  label="Local model"
+                  value={localModel}
+                  onChange={(event) => {
+                    setLocalModel(event.target.value as (typeof LOCAL_AI_MODELS)[number]);
+                  }}
+                >
+                  {LOCAL_AI_MODELS.map((model) => (
+                    <MenuItem key={model} value={model}>
+                      {LOCAL_AI_MODEL_LABELS[model]}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            ) : null}
           </Stack>
 
           <TextField
@@ -183,29 +354,31 @@ export function TaskForm({
             defaultValue={initialValues.starterStep}
             helperText={
               isGenerateStepsEnabled
-                ? "AI generation UI is enabled. Backend integration will be connected next."
+                ? "This text is used as a prompt hint. AI generates todo steps after task save."
                 : "Required. This is the tiny first move that gets you started."
             }
           />
         </Stack>
 
         <TextField
-          name="checklistItems"
-          label="Checklist items"
-          multiline
-          minRows={3}
-          defaultValue={initialValues.checklistItems.join("\n")}
-          helperText="Optional. One item per line."
-        />
-
-        <TextField
           name="tips"
-          label="Tips"
+          label="Get started"
           multiline
           minRows={3}
-          defaultValue={initialValues.tips.join("\n")}
-          helperText="Optional. One tip per line."
+          value={tipsValue}
+          onChange={(event) => setTipsValue(event.target.value)}
+          helperText={
+            isGenerateStepsEnabled
+              ? "Generated by AI. You can edit after generation."
+              : "Optional. One suggestion per line."
+          }
         />
+        {isGenerateStepsEnabled && aiTipsStatus !== "success" ? (
+          <Alert severity={aiTipsStatus ?? "info"}>
+            {aiTipsMessage ??
+              `Tips will be generated with ${TASK_AI_PROVIDER_LABELS[aiProvider]} after you save.`}
+          </Alert>
+        ) : null}
 
         <FormControlLabel
           control={
@@ -228,4 +401,17 @@ function SubmitButton({ label }: { label: string }) {
       {pending ? "Saving..." : label}
     </Button>
   );
+}
+
+function toInitialTipsValue(initialTips: string[], isGenerateStepsEnabled: boolean): string {
+  if (!isGenerateStepsEnabled) {
+    return initialTips.join("\n");
+  }
+
+  return removeDefaultTips(initialTips).join("\n");
+}
+
+function removeDefaultTips(tips: string[]): string[] {
+  const defaultTipSet = new Set(DEFAULT_TASK_TIPS.map((tip) => tip.trim().toLowerCase()));
+  return tips.filter((tip) => !defaultTipSet.has(tip.trim().toLowerCase()));
 }

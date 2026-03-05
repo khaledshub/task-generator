@@ -6,7 +6,13 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { TaskContext, TaskEnergy, TaskFrequency, TaskType } from "@prisma/client";
+import {
+  PickAction,
+  TaskContext,
+  TaskEnergy,
+  TaskFrequency,
+  TaskType,
+} from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requireSessionUserId } from "@/lib/auth/session";
 import {
@@ -15,6 +21,7 @@ import {
   TASK_FREQUENCY_LABELS,
   TASK_TYPE_LABELS,
 } from "@/lib/tasks/config";
+import { PagePurposeHeader } from "@/components/ui/page-purpose-header";
 
 interface HistoryPageProps {
   searchParams: Promise<{
@@ -45,6 +52,18 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
         createdAt: "desc",
       },
       take: parsedLimit,
+      select: {
+        id: true,
+        createdAt: true,
+        isArchived: true,
+        title: true,
+        description: true,
+        context: true,
+        energy: true,
+        type: true,
+        frequency: true,
+        timeEstimateMinutes: true,
+      },
     }),
     prisma.task.count({
       where: {
@@ -101,16 +120,10 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
 
   return (
     <Stack spacing={3}>
-      <Paper sx={{ p: 3 }}>
-        <Stack spacing={1}>
-          <Typography variant="h4" component="h1" fontWeight={700}>
-            History
-          </Typography>
-          <Typography color="text.secondary">
-            Full event log of picks and status updates.
-          </Typography>
-        </Stack>
-      </Paper>
+      <PagePurposeHeader
+        title="History"
+        subtitle="Review task timeline and status events to track momentum and outcomes."
+      />
 
       <Paper sx={{ p: 3 }}>
         <Stack

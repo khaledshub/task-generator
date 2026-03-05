@@ -10,6 +10,7 @@ import {
 import prisma from "@/lib/prisma";
 import { requireSessionUserId } from "@/lib/auth/session";
 import { HomeCreateTaskSpotlight } from "@/components/tasks/home-create-task-spotlight";
+import { PagePurposeHeader } from "@/components/ui/page-purpose-header";
 import {
   TASK_CONTEXT_LABELS,
   TASK_ENERGY_LABELS,
@@ -26,27 +27,38 @@ export default async function TasksPage() {
     prisma.task.findMany({
       where: { userId, isArchived: false },
       orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        context: true,
+        energy: true,
+        type: true,
+        frequency: true,
+        timeEstimateMinutes: true,
+        avoiding: true,
+        starterStep: true,
+        checklistItems: true,
+        tips: true,
+      },
     }),
     prisma.task.findMany({
       where: { userId, isArchived: true },
       orderBy: { updatedAt: "desc" },
       take: 10,
+      select: {
+        id: true,
+        title: true,
+      },
     }),
   ]);
 
   return (
     <Stack spacing={3}>
-      <Paper sx={{ p: 3 }}>
-        <Stack spacing={2}>
-          <Typography variant="h4" component="h1" fontWeight={700}>
-            Tasks
-          </Typography>
-          <Typography color="text.secondary">
-            Build a high-quality pool of tasks and let the picker choose the
-            best next action based on your current context.
-          </Typography>
-        </Stack>
-      </Paper>
+      <PagePurposeHeader
+        title="Tasks"
+        subtitle="Build your task pool so the picker can select the best next action for your context."
+      />
 
       <HomeCreateTaskSpotlight
         title="Task command center"
@@ -115,7 +127,7 @@ export default async function TasksPage() {
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                       <Button
                         href={`/app/tasks/${task.id}`}
-                        variant="text"
+                        variant="outlined"
                         size="small"
                       >
                         View

@@ -11,7 +11,8 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { useState } from "react";
 import { TaskForm } from "@/components/tasks/task-form";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { AppDrawer } from "@/components/ui/app-drawer";
@@ -42,18 +43,6 @@ export function HomeCreateTaskSpotlight({
   const [isInfoDrawerOpen, setIsInfoDrawerOpen] = useState(false);
   const [localStatus, setLocalStatus] = useState<TaskFormState>({ statusState: "idle" });
 
-  useEffect(() => {
-    if (!showStatus || localStatus.statusState === "idle") {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setLocalStatus({ statusState: "idle" });
-    }, 3000);
-
-    return () => window.clearTimeout(timer);
-  }, [localStatus, showStatus]);
-
   function handleStateChange(nextState: TaskFormState) {
     setLocalStatus(nextState);
     onStatusChange?.(nextState);
@@ -66,14 +55,51 @@ export function HomeCreateTaskSpotlight({
   return (
     <>
       <Paper
-        sx={{
+        sx={(theme) => {
+          const isDark = theme.palette.mode === "dark";
+          return {
           p: 4,
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: 3,
           textAlign: "center",
           background:
-            "linear-gradient(140deg, rgba(15,118,110,0.12), rgba(20,184,166,0.18), rgba(251,191,36,0.12))",
+            isDark
+              ? "linear-gradient(145deg, rgba(15,23,42,0.95), rgba(30,64,175,0.88), rgba(6,182,212,0.75))"
+              : "linear-gradient(145deg, rgba(30,64,175,0.96), rgba(37,99,235,0.88), rgba(56,189,248,0.8))",
+          color: "common.white",
+          border: isDark
+            ? "1px solid rgba(148,163,184,0.3)"
+            : "1px solid rgba(255,255,255,0.24)",
+          boxShadow: isDark
+            ? "0 20px 42px rgba(2,6,23,0.46)"
+            : "0 20px 42px rgba(30,64,175,0.3)",
+          transition: "transform 220ms ease, box-shadow 220ms ease",
+          "@keyframes createCardSparkPulse": {
+            "0%": { opacity: 0.2, transform: "scale(0.92)" },
+            "50%": { opacity: 0.52, transform: "scale(1.05)" },
+            "100%": { opacity: 0.2, transform: "scale(0.92)" },
+          },
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            inset: "-22%",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle at 26% 30%, rgba(191,219,254,0.3), rgba(56,189,248,0.2), transparent 68%)",
+            pointerEvents: "none",
+            animation: "createCardSparkPulse 3.6s ease-in-out infinite",
+          },
+            "&:hover": {
+              transform: "translateY(-3px) scale(1.01)",
+              boxShadow: isDark
+                ? "0 28px 52px rgba(2,6,23,0.56)"
+                : "0 28px 52px rgba(30,64,175,0.42)",
+            },
+          };
         }}
       >
-        <Stack spacing={1.5} alignItems="center">
+        <Stack spacing={1.5} alignItems="center" sx={{ position: "relative", zIndex: 1 }}>
           {showEnhancements ? (
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <Chip size="small" color="primary" label="Fast create" />
@@ -85,22 +111,34 @@ export function HomeCreateTaskSpotlight({
           <Typography variant="h4" component="h2">
             {title}
           </Typography>
-          <Typography color="text.secondary" maxWidth={760}>
+          <Typography sx={{ color: "rgba(255,255,255,0.84)" }} maxWidth={760}>
             {description}
           </Typography>
-          <Button
-            variant="contained"
-            size="large"
-            startIcon={<AddTask />}
-            onClick={() => {
-              const idleState: TaskFormState = { statusState: "idle" };
-              setLocalStatus(idleState);
-              onStatusChange?.(idleState);
-              setOpen(true);
-            }}
-          >
-            {buttonLabel}
-          </Button>
+          <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.98 }}>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<AddTask />}
+              sx={{
+                fontWeight: 700,
+                bgcolor: "rgba(255,255,255,0.22)",
+                color: "common.white",
+                border: "1px solid rgba(255,255,255,0.34)",
+                backdropFilter: "blur(2px)",
+                "&:hover": {
+                  bgcolor: "rgba(255,255,255,0.28)",
+                },
+              }}
+              onClick={() => {
+                const idleState: TaskFormState = { statusState: "idle" };
+                setLocalStatus(idleState);
+                onStatusChange?.(idleState);
+                setOpen(true);
+              }}
+            >
+              {buttonLabel}
+            </Button>
+          </motion.div>
           {showEnhancements ? (
             <Button variant="outlined" onClick={() => setIsInfoDrawerOpen(true)}>
               Productivity tips
@@ -108,25 +146,32 @@ export function HomeCreateTaskSpotlight({
           ) : null}
 
           {showStatus && localStatus.statusState !== "idle" ? (
-            <Alert
-              severity={localStatus.statusState === "success" ? "success" : "error"}
-              sx={{ width: "100%", maxWidth: 760, textAlign: "left" }}
-              action={
-                <IconButton
-                  aria-label="Close status banner"
-                  color="inherit"
-                  size="small"
-                  onClick={() => setLocalStatus({ statusState: "idle" })}
-                >
-                  <CloseIcon fontSize="inherit" />
-                </IconButton>
-              }
-            >
-              {localStatus.message ??
-                (localStatus.statusState === "success"
-                  ? "Task created."
-                  : "Could not save task.")}
-            </Alert>
+            <Stack spacing={1} sx={{ width: "100%", maxWidth: 760 }}>
+              <Alert
+                severity={localStatus.statusState === "success" ? "success" : "error"}
+                sx={{ textAlign: "left" }}
+                action={
+                  <IconButton
+                    aria-label="Close status banner"
+                    color="inherit"
+                    size="small"
+                    onClick={() => setLocalStatus({ statusState: "idle" })}
+                  >
+                    <CloseIcon fontSize="inherit" />
+                  </IconButton>
+                }
+              >
+                {localStatus.message ??
+                  (localStatus.statusState === "success"
+                    ? "Task created."
+                    : "Could not save task.")}
+              </Alert>
+              {localStatus.aiStatus && localStatus.aiMessage ? (
+                <Alert severity={localStatus.aiStatus} sx={{ textAlign: "left" }}>
+                  {localStatus.aiMessage}
+                </Alert>
+              ) : null}
+            </Stack>
           ) : null}
         </Stack>
       </Paper>

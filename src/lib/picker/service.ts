@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { Prisma } from "@prisma/client";
 import {
   RECENT_DONE_LOOKBACK_DAYS,
   RECENT_PICK_LOOKBACK_COUNT,
@@ -27,6 +28,7 @@ interface PickTaskServiceSuccess {
     title: string;
     description: string | null;
     starterStep: string;
+    aiGeneratedSteps: string[];
     checklistItems: string[];
     tips: string[];
   };
@@ -51,13 +53,7 @@ export async function createIntentAndPickTask(
   });
 
   const [tasks, recentPickEvents, recentDoneEvents] = await Promise.all([
-    prisma.task.findMany({
-      where: {
-        userId,
-        isArchived: false,
-      },
-      orderBy: { createdAt: "asc" },
-    }),
+    loadPickerTasks(userId),
     prisma.pickEvent.findMany({
       where: {
         userId,
@@ -151,6 +147,7 @@ export async function createIntentAndPickTask(
       title: selectedTask.title,
       description: selectedTask.description,
       starterStep: selectedTask.starterStep,
+      aiGeneratedSteps: toStringArray(selectedTask.aiGeneratedSteps ?? []),
       checklistItems: toStringArray(selectedTask.checklistItems),
       tips: toStringArray(selectedTask.tips),
     },
@@ -237,4 +234,75 @@ function toActionWhyLine(payload: PickEventActionPayload): string {
  */
 function subtractDays(date: Date, days: number): Date {
   return new Date(date.getTime() - days * 24 * 60 * 60 * 1000);
+}
+
+async function loadPickerTasks(userId: string): Promise<
+  Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    context: "HOME" | "OUT" | "COMPUTER";
+    energy: "LOW" | "MEDIUM" | "HIGH";
+    timeEstimateMinutes: number;
+    avoiding: boolean;
+    starterStep: string;
+    checklistItems: Prisma.JsonValue;
+    tips: Prisma.JsonValue;
+    aiGeneratedSteps?: Prisma.JsonValue | null;
+  }>
+> {
+  try {
+    return await prisma.task.findMany({
+      where: {
+        userId,
+        isArchived: false,
+      },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        context: true,
+        energy: true,
+        timeEstimateMinutes: true,
+        avoiding: true,
+        starterStep: true,
+        checklistItems: true,
+        tips: true,
+        aiGeneratedSteps: true,
+      },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2022" &&
+      String(error.meta?.column ?? "").includes("aiGeneratedSteps")
+    ) {
+      logger.warn(
+        { error, userId },
+        "aiGeneratedSteps column unavailable; loading picker tasks without AI steps",
+      );
+      return prisma.task.findMany({
+        where: {
+          userId,
+          isArchived: false,
+        },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          context: true,
+          energy: true,
+          timeEstimateMinutes: true,
+          avoiding: true,
+          starterStep: true,
+          checklistItems: true,
+          tips: true,
+        },
+      });
+    }
+
+    throw error;
+  }
 }

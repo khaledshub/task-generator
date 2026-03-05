@@ -44,9 +44,15 @@ export default async function HomePage() {
 
       <Container maxWidth="md" sx={{ py: 6 }}>
         <Stack spacing={3}>
-          <Paper sx={{ p: 4 }}>
-            <Stack spacing={2}>
-              <Typography variant="h4" component="h1" fontWeight={700}>
+          <Paper
+            sx={{
+              p: 3,
+              background:
+                "linear-gradient(130deg, color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent), color-mix(in srgb, var(--mui-palette-background-paper) 92%, white 8%))",
+            }}
+          >
+            <Stack spacing={2} alignItems="center" textAlign="center">
+              <Typography variant="h5" component="h1" fontWeight={700} textAlign="center">
                 Monolith bootstrap is running
               </Typography>
               <Typography color="text.secondary">

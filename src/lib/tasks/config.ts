@@ -18,12 +18,16 @@ export const TASK_TYPES = [
   "ADMIN",
 ] as const;
 export const TASK_ENERGIES = ["LOW", "MEDIUM", "HIGH"] as const;
+export const TASK_AI_PROVIDERS = ["LOCAL", "OPENAI"] as const;
+export const LOCAL_AI_MODELS = ["gpt-oss:20b", "qwen3-vl:8b", "qwen3-vl:4b"] as const;
 export const TASK_TIME_OPTIONS = [5, 10, 15, 30, 60] as const;
 
 export type TaskFrequencyValue = (typeof TASK_FREQUENCIES)[number];
 export type TaskContextValue = (typeof TASK_CONTEXTS)[number];
 export type TaskTypeValue = (typeof TASK_TYPES)[number];
 export type TaskEnergyValue = (typeof TASK_ENERGIES)[number];
+export type TaskAiProviderValue = (typeof TASK_AI_PROVIDERS)[number];
+export type LocalAiModelValue = (typeof LOCAL_AI_MODELS)[number];
 
 export const TASK_FREQUENCY_LABELS: Record<TaskFrequencyValue, string> = {
   ONE_OFF: "One-off",
@@ -51,6 +55,17 @@ export const TASK_ENERGY_LABELS: Record<TaskEnergyValue, string> = {
   LOW: "Low",
   MEDIUM: "Medium",
   HIGH: "High",
+};
+
+export const TASK_AI_PROVIDER_LABELS: Record<TaskAiProviderValue, string> = {
+  OPENAI: "OpenAI",
+  LOCAL: "LocalGenAI",
+};
+
+export const LOCAL_AI_MODEL_LABELS: Record<LocalAiModelValue, string> = {
+  "gpt-oss:20b": "gpt-oss:20b",
+  "qwen3-vl:8b": "qwen3-vl:8b",
+  "qwen3-vl:4b": "qwen3-vl:4b",
 };
 
 export const DEFAULT_TASK_TIPS = [
