@@ -235,7 +235,16 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
                   <Chip
                     size="small"
                     label={event.action}
-                    color={event.action === PickAction.DONE ? "success" : "default"}
+                    color={toEventChipColor(event.action)}
+                    variant="filled"
+                    sx={
+                      event.action === PickAction.PICKED
+                        ? {
+                            bgcolor: "info.main",
+                            color: "info.contrastText",
+                          }
+                        : undefined
+                    }
                   />
                   {event.skippedReason ? (
                     <Chip size="small" color="warning" label={event.skippedReason} />
@@ -299,4 +308,20 @@ function getNextLimit(current: 5 | 10 | 20): 10 | 20 | null {
   }
 
   return null;
+}
+
+function toEventChipColor(action: PickAction): "info" | "primary" | "success" | "warning" {
+  if (action === PickAction.PICKED) {
+    return "info";
+  }
+
+  if (action === PickAction.STARTED) {
+    return "primary";
+  }
+
+  if (action === PickAction.DONE) {
+    return "success";
+  }
+
+  return "warning";
 }

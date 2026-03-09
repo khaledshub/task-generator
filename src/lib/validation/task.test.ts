@@ -32,19 +32,11 @@ describe("task input validation", () => {
     expect(parsed.tips).toEqual(["Set a 10-min timer", "Ignore perfection"]);
   });
 
-  it("requires starterStep", () => {
+  it("generates a fallback starterStep when omitted", () => {
     const formData = createValidFormData();
     formData.set("starterStep", "");
-
-    try {
-      taskFormDataToInput(formData);
-      throw new Error("Expected validation to fail.");
-    } catch (error) {
-      expect(error).toBeInstanceOf(ZodError);
-      if (error instanceof ZodError) {
-        expect(error.issues[0]?.message).toBe("Starter step is required.");
-      }
-    }
+    const parsed = taskFormDataToInput(formData);
+    expect(parsed.starterStep).toContain('Open "Pay utility bill"');
   });
 
   it("rejects unsupported time values", () => {

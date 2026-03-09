@@ -187,6 +187,7 @@ export function HomeCreateTaskSpotlight({
           initialValues={DEFAULT_TASK_FORM_VALUES}
           submitLabel="Create task"
           onStateChange={handleStateChange}
+          mode="create"
         />
       </AppDialog>
 

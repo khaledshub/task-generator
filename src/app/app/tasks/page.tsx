@@ -1,4 +1,5 @@
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -18,10 +19,18 @@ import {
   TASK_TYPE_LABELS,
 } from "@/lib/tasks/config";
 import { toStringArray } from "@/lib/tasks/types";
-import { archiveTaskAction } from "./actions";
+import { archiveTaskAction, deleteTaskAction } from "./actions";
 
-export default async function TasksPage() {
+interface TasksPageProps {
+  searchParams: Promise<{
+    focusTask?: string;
+  }>;
+}
+
+export default async function TasksPage({ searchParams }: TasksPageProps) {
   const userId = await requireSessionUserId();
+  const { focusTask } = await searchParams;
+  const focusedTaskId = focusTask?.trim() || null;
 
   const [activeTasks, archivedTasks] = await Promise.all([
     prisma.task.findMany({
@@ -73,6 +82,12 @@ export default async function TasksPage() {
             Active tasks ({activeTasks.length})
           </Typography>
 
+          {focusedTaskId ? (
+            <Alert severity="success">
+              New task is highlighted below. Open it to continue working.
+            </Alert>
+          ) : null}
+
           {activeTasks.length === 0 ? (
             <Typography color="text.secondary">
               No tasks yet. Create your first task above.
@@ -81,9 +96,26 @@ export default async function TasksPage() {
             activeTasks.map((task) => {
               const checklistCount = toStringArray(task.checklistItems).length;
               const tipsCount = toStringArray(task.tips).length;
+              const isFocusedTask = focusedTaskId === task.id;
 
               return (
-                <Box key={task.id}>
+                <Box
+                  key={task.id}
+                  id={`task-${task.id}`}
+                  sx={
+                    isFocusedTask
+                      ? {
+                          scrollMarginTop: 96,
+                          p: 1.5,
+                          borderRadius: 2,
+                          border: "2px solid",
+                          borderColor: "primary.main",
+                          background:
+                            "linear-gradient(140deg, color-mix(in srgb, var(--mui-palette-primary-main) 14%, transparent), color-mix(in srgb, var(--mui-palette-background-paper) 95%, white 5%))",
+                        }
+                      : undefined
+                  }
+                >
                   <Stack spacing={1.5}>
                     <Typography variant="h6">{task.title}</Typography>
                     {task.description ? (
@@ -93,6 +125,15 @@ export default async function TasksPage() {
                     ) : null}
 
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Chip
+                        size="small"
+                        label="Active"
+                        variant="filled"
+                        sx={{
+                          bgcolor: "success.main",
+                          color: "success.contrastText",
+                        }}
+                      />
                       <Chip
                         size="small"
                         label={`Context: ${TASK_CONTEXT_LABELS[task.context]}`}
@@ -116,6 +157,9 @@ export default async function TasksPage() {
                       {task.avoiding ? (
                         <Chip size="small" color="warning" label="Avoiding" />
                       ) : null}
+                      {isFocusedTask ? (
+                        <Chip size="small" color="primary" label="Just created" />
+                      ) : null}
                       <Chip size="small" label={`Checklist: ${checklistCount}`} />
                       <Chip size="small" label={`Tips: ${tipsCount}`} />
                     </Stack>
@@ -127,10 +171,10 @@ export default async function TasksPage() {
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                       <Button
                         href={`/app/tasks/${task.id}`}
-                        variant="outlined"
+                        variant={isFocusedTask ? "contained" : "outlined"}
                         size="small"
                       >
-                        View
+                        {isFocusedTask ? "Open task" : "View"}
                       </Button>
 
                       <Button
@@ -142,8 +186,25 @@ export default async function TasksPage() {
                       </Button>
 
                       <form action={archiveTaskAction.bind(null, task.id)}>
-                        <Button type="submit" color="warning" size="small">
+                        <Button
+                          type="submit"
+                          variant="outlined"
+                          color="warning"
+                          size="small"
+                        >
                           Archive
+                        </Button>
+                      </form>
+
+                      <form action={deleteTaskAction.bind(null, task.id)}>
+                        <Button
+                          type="submit"
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          sx={{ color: "error.main", borderColor: "error.main" }}
+                        >
+                          Delete
                         </Button>
                       </form>
                     </Stack>
@@ -163,9 +224,10 @@ export default async function TasksPage() {
             <Typography color="text.secondary">No archived tasks yet.</Typography>
           ) : (
             archivedTasks.map((task) => (
-              <Typography key={task.id} color="text.secondary">
-                {task.title}
-              </Typography>
+              <Stack key={task.id} direction="row" spacing={1} alignItems="center">
+                <Chip size="small" color="warning" label="Archived" />
+                <Typography color="text.secondary">{task.title}</Typography>
+              </Stack>
             ))
           )}
         </Stack>

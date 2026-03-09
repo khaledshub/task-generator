@@ -17,6 +17,7 @@ import {
 export interface TaskFormState {
   statusState: "idle" | "success" | "error";
   message?: string;
+  createdTaskId?: string;
   aiStatus?: "success" | "error" | "info";
   aiMessage?: string;
   aiGenerationRequest?: {

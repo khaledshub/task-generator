@@ -11,14 +11,15 @@ import {
  * Validates intent payload submitted from the picker screen.
  */
 export const intentInputSchema = z.object({
-  contextChoice: z.enum(INTENT_CONTEXT_OPTIONS),
-  modeChoice: z.enum(INTENT_MODE_OPTIONS),
+  contextChoice: z.enum(INTENT_CONTEXT_OPTIONS).optional(),
+  modeChoice: z.enum(INTENT_MODE_OPTIONS).optional(),
   timeAvailableMinutes: z
     .number()
     .int()
     .refine((minutes) => INTENT_TIME_OPTIONS.includes(minutes as 10 | 30 | 60), {
       message: "Time choice must be 10, 30, or 60 minutes.",
-    }),
+    })
+    .optional(),
 });
 
 export type IntentPayload = z.infer<typeof intentInputSchema>;

@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { Checklist } from "@/components/tasks/checklist";
 import {
   INTENT_CONTEXT_OPTIONS,
   INTENT_MODE_LABELS,
@@ -52,9 +53,9 @@ interface ActionResponse {
 
 interface PickTaskPanelProps {
   initialIntent?: {
-    contextChoice: (typeof INTENT_CONTEXT_OPTIONS)[number];
-    modeChoice: (typeof INTENT_MODE_OPTIONS)[number];
-    timeChoice: (typeof INTENT_TIME_OPTIONS)[number];
+    contextChoice?: (typeof INTENT_CONTEXT_OPTIONS)[number];
+    modeChoice?: (typeof INTENT_MODE_OPTIONS)[number];
+    timeChoice?: (typeof INTENT_TIME_OPTIONS)[number];
   };
 }
 
@@ -102,14 +103,16 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
   const queryMode = toIntentModeFromQuery(searchParams.get("mode"));
   const queryTime = toIntentTimeFromQuery(searchParams.get("time"));
 
-  const [contextChoice, setContextChoice] = useState<(typeof INTENT_CONTEXT_OPTIONS)[number]>(
-    queryContext ?? initialIntent?.contextChoice ?? INTENT_CONTEXT_OPTIONS[0],
+  const [contextChoice, setContextChoice] = useState<
+    (typeof INTENT_CONTEXT_OPTIONS)[number] | null
+  >(
+    queryContext ?? initialIntent?.contextChoice ?? null,
   );
-  const [modeChoice, setModeChoice] = useState<(typeof INTENT_MODE_OPTIONS)[number]>(
-    queryMode ?? initialIntent?.modeChoice ?? INTENT_MODE_OPTIONS[1],
+  const [modeChoice, setModeChoice] = useState<(typeof INTENT_MODE_OPTIONS)[number] | null>(
+    queryMode ?? initialIntent?.modeChoice ?? null,
   );
-  const [timeChoice, setTimeChoice] = useState<(typeof INTENT_TIME_OPTIONS)[number]>(
-    queryTime ?? initialIntent?.timeChoice ?? INTENT_TIME_OPTIONS[1],
+  const [timeChoice, setTimeChoice] = useState<(typeof INTENT_TIME_OPTIONS)[number] | null>(
+    queryTime ?? initialIntent?.timeChoice ?? null,
   );
   const [skippedReason, setSkippedReason] = useState<SkippedReasonValue>(
     SKIPPED_REASON_OPTIONS[0],
@@ -132,9 +135,9 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        contextChoice,
-        modeChoice,
-        timeAvailableMinutes: timeChoice,
+        ...(contextChoice ? { contextChoice } : {}),
+        ...(modeChoice ? { modeChoice } : {}),
+        ...(timeChoice !== null ? { timeAvailableMinutes: timeChoice } : {}),
       }),
     });
 
@@ -203,13 +206,19 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
               <Select
                 labelId="picker-context-label"
                 label="Context"
-                value={contextChoice}
+                value={contextChoice ?? ""}
+                displayEmpty
                 onChange={(event) =>
                   setContextChoice(
-                    event.target.value as (typeof INTENT_CONTEXT_OPTIONS)[number],
+                    event.target.value
+                      ? (event.target.value as (typeof INTENT_CONTEXT_OPTIONS)[number])
+                      : null,
                   )
                 }
               >
+                <MenuItem value="">
+                  <em>Any</em>
+                </MenuItem>
                 {INTENT_CONTEXT_OPTIONS.map((context) => (
                   <MenuItem key={context} value={context}>
                     {TASK_CONTEXT_LABELS[context]}
@@ -223,13 +232,19 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
               <Select
                 labelId="picker-mode-label"
                 label="Mode"
-                value={modeChoice}
+                value={modeChoice ?? ""}
+                displayEmpty
                 onChange={(event) =>
                   setModeChoice(
-                    event.target.value as (typeof INTENT_MODE_OPTIONS)[number],
+                    event.target.value
+                      ? (event.target.value as (typeof INTENT_MODE_OPTIONS)[number])
+                      : null,
                   )
                 }
               >
+                <MenuItem value="">
+                  <em>Any</em>
+                </MenuItem>
                 {INTENT_MODE_OPTIONS.map((mode) => (
                   <MenuItem key={mode} value={mode}>
                     {INTENT_MODE_LABELS[mode]}
@@ -243,11 +258,19 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
               <Select
                 labelId="picker-time-label"
                 label="Time available"
-                value={String(timeChoice)}
+                value={timeChoice === null ? "" : String(timeChoice)}
+                displayEmpty
                 onChange={(event) =>
-                  setTimeChoice(Number(event.target.value) as 10 | 30 | 60)
+                  setTimeChoice(
+                    event.target.value
+                      ? (Number(event.target.value) as (typeof INTENT_TIME_OPTIONS)[number])
+                      : null,
+                  )
                 }
               >
+                <MenuItem value="">
+                  <em>Any</em>
+                </MenuItem>
                 {INTENT_TIME_OPTIONS.map((minutes) => (
                   <MenuItem key={minutes} value={String(minutes)}>
                     {INTENT_TIME_LABELS[minutes]}
@@ -331,34 +354,24 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
               <Typography variant="subtitle1" fontWeight={600}>
                 Checklist
               </Typography>
-              {pickResult.task.checklistItems.length === 0 ? (
-                <Typography color="text.secondary">No checklist items.</Typography>
-              ) : (
-                <Stack component="ul" sx={{ pl: 3, m: 0 }}>
-                  {pickResult.task.checklistItems.map((item) => (
-                    <Typography key={item} component="li">
-                      {item}
-                    </Typography>
-                  ))}
-                </Stack>
-              )}
+              <Checklist
+                key={`pick-checklist:${pickResult.task.id}`}
+                items={pickResult.task.checklistItems}
+                emptyMessage="No checklist items."
+                storageKey={`pick-checklist:${pickResult.task.id}`}
+              />
             </Box>
 
             <Box>
               <Typography variant="subtitle1" fontWeight={600}>
                 Tips
               </Typography>
-              {pickResult.task.tips.length === 0 ? (
-                <Typography color="text.secondary">No tips.</Typography>
-              ) : (
-                <Stack component="ul" sx={{ pl: 3, m: 0 }}>
-                  {pickResult.task.tips.map((tip) => (
-                    <Typography key={tip} component="li">
-                      {tip}
-                    </Typography>
-                  ))}
-                </Stack>
-              )}
+              <Checklist
+                key={`pick-tips:${pickResult.task.id}`}
+                items={pickResult.task.tips}
+                emptyMessage="No tips."
+                storageKey={`pick-tips:${pickResult.task.id}`}
+              />
             </Box>
 
             <DividerLine />

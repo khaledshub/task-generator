@@ -42,6 +42,7 @@ export async function createTaskAction(
     return {
       statusState: "success",
       message: "Task created.",
+      createdTaskId: createdTask.id,
       aiStatus: input.generateAiStepsEnabled ? "info" : undefined,
       aiMessage: input.generateAiStepsEnabled
         ? `Generating AI tips with ${toAiProviderLabel(input.aiProvider)}...`
@@ -191,6 +192,23 @@ export async function archiveTaskAction(taskId: string): Promise<void> {
     },
   });
 
+  revalidatePath("/app/tasks");
+}
+
+/**
+ * Permanently deletes a task owned by the authenticated user.
+ */
+export async function deleteTaskAction(taskId: string): Promise<void> {
+  const userId = await requireSessionUserId();
+
+  await prisma.task.deleteMany({
+    where: {
+      id: taskId,
+      userId,
+    },
+  });
+
+  revalidatePath("/app");
   revalidatePath("/app/tasks");
 }
 

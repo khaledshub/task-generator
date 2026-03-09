@@ -2,9 +2,9 @@ import type { TaskContextValue, TaskEnergyValue } from "@/lib/tasks/config";
 import type { IntentModeValue } from "@/lib/picker/config";
 
 export interface IntentInput {
-  contextChoice: TaskContextValue;
-  modeChoice: IntentModeValue;
-  timeAvailableMinutes: number;
+  contextChoice?: TaskContextValue;
+  modeChoice?: IntentModeValue;
+  timeAvailableMinutes?: number;
 }
 
 export interface PickerTask {

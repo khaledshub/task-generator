@@ -92,6 +92,7 @@ export function TasksUxShell({ createAction, defaultValues }: TasksUxShellProps)
           action={createAction}
           initialValues={defaultValues}
           submitLabel="Create task"
+          mode="create"
         />
       </AppDialog>
 

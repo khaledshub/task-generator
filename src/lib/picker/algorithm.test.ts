@@ -125,4 +125,22 @@ describe("picker algorithm", () => {
     expect(first.task.id).toBe("a");
     expect(second.task.id).toBe("b");
   });
+
+  it("picks from all available tasks when no filters are provided", () => {
+    const result = selectTaskForIntent(
+      [
+        createTask({ id: "home", context: "HOME", energy: "LOW", timeEstimateMinutes: 15 }),
+        createTask({ id: "out", context: "OUT", energy: "HIGH", timeEstimateMinutes: 90 }),
+      ],
+      {},
+      fairness,
+      { random: () => 0.95 },
+    );
+
+    expect(result.status).toBe("picked");
+    if (result.status === "picked") {
+      expect(result.task.id).toBe("out");
+      expect(result.why).toContain("No filters selected");
+    }
+  });
 });

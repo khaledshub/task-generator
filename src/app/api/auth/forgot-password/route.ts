@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import {
@@ -17,6 +18,19 @@ const FORGOT_PASSWORD_MAX_ATTEMPTS = 10;
 
 const GENERIC_SUCCESS_MESSAGE =
   "If an account exists for this email, a reset link has been generated.";
+
+const PASSWORD_RESET_SETUP_WARNING =
+  "Password reset storage is unavailable. Run `npm run db:migrate`.";
+
+function isMissingPasswordResetTableError(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2021") {
+    return false;
+  }
+
+  const table = String((error.meta as { table?: string } | undefined)?.table ?? "");
+  const modelName = String((error.meta as { modelName?: string } | undefined)?.modelName ?? "");
+  return table.includes("PasswordResetToken") || modelName === "PasswordResetToken";
+}
 
 /**
  * Creates an expiring reset token for a known user and returns a generic response.
@@ -60,20 +74,36 @@ export async function POST(request: Request) {
   const tokenHash = hashPasswordResetToken(rawToken);
   const expiresAt = getPasswordResetExpiryDate();
 
-  await prisma.passwordResetToken.deleteMany({
-    where: {
-      userId: user.id,
-      usedAt: null,
-    },
-  });
+  try {
+    await prisma.passwordResetToken.deleteMany({
+      where: {
+        userId: user.id,
+        usedAt: null,
+      },
+    });
 
-  await prisma.passwordResetToken.create({
-    data: {
-      userId: user.id,
-      tokenHash,
-      expiresAt,
-    },
-  });
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      },
+    });
+  } catch (error) {
+    if (!isMissingPasswordResetTableError(error)) {
+      throw error;
+    }
+
+    logger.error({ error }, "Password reset table is missing");
+    if (process.env.NODE_ENV !== "production") {
+      return NextResponse.json(
+        { message: GENERIC_SUCCESS_MESSAGE, warning: PASSWORD_RESET_SETUP_WARNING },
+        { status: 200 },
+      );
+    }
+
+    return NextResponse.json({ message: GENERIC_SUCCESS_MESSAGE }, { status: 200 });
+  }
 
   const baseUrl = process.env.NEXTAUTH_URL ?? new URL(request.url).origin;
   const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`;

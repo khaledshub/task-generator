@@ -72,14 +72,26 @@ function SaveStatusBanner({
       <Alert
         severity={status.statusState === "success" ? "success" : "error"}
         action={
-          <IconButton
-            aria-label="Close status banner"
-            color="inherit"
-            size="small"
-            onClick={onDismiss}
-          >
-            <CloseIcon fontSize="inherit" />
-          </IconButton>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            {status.statusState === "success" && status.createdTaskId ? (
+              <Button
+                color="inherit"
+                size="small"
+                href={`/app/tasks?focusTask=${status.createdTaskId}#task-${status.createdTaskId}`}
+                sx={{ fontWeight: 700 }}
+              >
+                Open in Tasks
+              </Button>
+            ) : null}
+            <IconButton
+              aria-label="Close status banner"
+              color="inherit"
+              size="small"
+              onClick={onDismiss}
+            >
+              <CloseIcon fontSize="inherit" />
+            </IconButton>
+          </Stack>
         }
       >
         {status.message ??
@@ -98,14 +110,14 @@ export function HomeDashboardShell({
   eventsCount,
 }: HomeDashboardShellProps) {
   const [status, setStatus] = useState<TaskFormState>({ statusState: "idle" });
-  const [pickContextChoice, setPickContextChoice] = useState<(typeof TASK_CONTEXTS)[number]>(
-    TASK_CONTEXTS[0],
+  const [pickContextFilter, setPickContextFilter] = useState<(typeof TASK_CONTEXTS)[number] | "">(
+    "",
   );
-  const [pickModeChoice, setPickModeChoice] = useState<(typeof INTENT_MODE_OPTIONS)[number]>(
-    INTENT_MODE_OPTIONS[1],
+  const [pickModeChoice, setPickModeChoice] = useState<(typeof INTENT_MODE_OPTIONS)[number] | "">(
+    "",
   );
-  const [pickTimeChoice, setPickTimeChoice] = useState<(typeof INTENT_TIME_OPTIONS)[number]>(
-    INTENT_TIME_OPTIONS[1],
+  const [pickTimeChoice, setPickTimeChoice] = useState<(typeof INTENT_TIME_OPTIONS)[number] | "">(
+    "",
   );
   const [isPickDialogOpen, setIsPickDialogOpen] = useState(false);
   const [isPickingTask, setIsPickingTask] = useState(false);
@@ -125,9 +137,9 @@ export function HomeDashboardShell({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        contextChoice: pickContextChoice,
-        modeChoice: pickModeChoice,
-        timeAvailableMinutes: pickTimeChoice,
+        ...(pickContextFilter ? { contextChoice: pickContextFilter } : {}),
+        ...(pickModeChoice ? { modeChoice: pickModeChoice } : {}),
+        ...(pickTimeChoice !== "" ? { timeAvailableMinutes: pickTimeChoice } : {}),
       }),
     });
 
@@ -226,9 +238,10 @@ export function HomeDashboardShell({
                   <Select
                     labelId="home-pick-context-label"
                     label="Context"
-                    value={pickContextChoice}
+                    value={pickContextFilter}
+                    displayEmpty
                     onChange={(event) =>
-                      setPickContextChoice(event.target.value as (typeof TASK_CONTEXTS)[number])
+                      setPickContextFilter(event.target.value as (typeof TASK_CONTEXTS)[number] | "")
                     }
                     sx={{
                       color: "common.white",
@@ -238,6 +251,9 @@ export function HomeDashboardShell({
                       "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.9)" },
                     }}
                   >
+                    <MenuItem value="">
+                      <em>Any</em>
+                    </MenuItem>
                     {TASK_CONTEXTS.map((context) => (
                       <MenuItem key={context} value={context}>
                         {TASK_CONTEXT_LABELS[context]}
@@ -254,8 +270,9 @@ export function HomeDashboardShell({
                     labelId="home-pick-mode-label"
                     label="Mode"
                     value={pickModeChoice}
+                    displayEmpty
                     onChange={(event) =>
-                      setPickModeChoice(event.target.value as (typeof INTENT_MODE_OPTIONS)[number])
+                      setPickModeChoice(event.target.value as (typeof INTENT_MODE_OPTIONS)[number] | "")
                     }
                     sx={{
                       color: "common.white",
@@ -265,6 +282,9 @@ export function HomeDashboardShell({
                       "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.9)" },
                     }}
                   >
+                    <MenuItem value="">
+                      <em>Any</em>
+                    </MenuItem>
                     {INTENT_MODE_OPTIONS.map((mode) => (
                       <MenuItem key={mode} value={mode}>
                         {INTENT_MODE_LABELS[mode]}
@@ -281,9 +301,12 @@ export function HomeDashboardShell({
                     labelId="home-pick-time-label"
                     label="Time"
                     value={pickTimeChoice}
+                    displayEmpty
                     onChange={(event) =>
                       setPickTimeChoice(
-                        Number(event.target.value) as (typeof INTENT_TIME_OPTIONS)[number],
+                        event.target.value
+                          ? (Number(event.target.value) as (typeof INTENT_TIME_OPTIONS)[number])
+                          : "",
                       )
                     }
                     sx={{
@@ -294,6 +317,9 @@ export function HomeDashboardShell({
                       "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.9)" },
                     }}
                   >
+                    <MenuItem value="">
+                      <em>Any</em>
+                    </MenuItem>
                     {INTENT_TIME_OPTIONS.map((time) => (
                       <MenuItem key={time} value={time}>
                         {INTENT_TIME_LABELS[time]}

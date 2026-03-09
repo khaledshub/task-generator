@@ -1,6 +1,6 @@
 "use client";
 
-import { AppBar, Box, Button, Stack, Toolbar, Typography } from "@mui/material";
+import { AppBar, Box, Button, Stack, Toolbar } from "@mui/material";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LogoutButton } from "@/components/logout-button";
@@ -29,6 +29,16 @@ export function AppHeader({ userEmail }: AppHeaderProps) {
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
   const lastScrollYRef = useRef(0);
+  const displayUserName = userEmail?.split("@")[0] ?? "";
+  const userActionButtonSx = {
+    width: { xs: 96, sm: 132 },
+    fontSize: { xs: "0.62rem", sm: "0.78rem" },
+    minHeight: { xs: 24, sm: 34 },
+    px: { xs: 0.7, sm: 1.2 },
+    py: { xs: 0.2, sm: 0.55 },
+    lineHeight: 1.1,
+    borderRadius: 999,
+  } as const;
 
   function toCanonicalPath(path: string): string {
     const collapsed = path.replace(/\/{2,}/g, "/");
@@ -78,15 +88,39 @@ export function AppHeader({ userEmail }: AppHeaderProps) {
         sx={{
           width: { xs: "100%", lg: "75%" },
           mx: "auto",
+          p: "2px",
           borderRadius: 4,
           border: "1px solid",
           borderColor:
             "color-mix(in srgb, var(--mui-palette-primary-main) 22%, transparent)",
           bgcolor:
-            "color-mix(in srgb, var(--mui-palette-background-paper) 78%, transparent)",
+            "color-mix(in srgb, var(--mui-palette-background-default) 68%, white 32%)",
+          backgroundImage:
+            "linear-gradient(165deg, color-mix(in srgb, var(--mui-palette-primary-main) 18%, transparent) 0%, color-mix(in srgb, var(--mui-palette-background-paper) 82%, transparent) 42%, color-mix(in srgb, var(--mui-palette-secondary-main) 14%, transparent) 100%)",
           backdropFilter: "blur(14px)",
           boxShadow:
-            "0 10px 24px color-mix(in srgb, var(--mui-palette-primary-main) 14%, transparent)",
+            "0 14px 30px color-mix(in srgb, var(--mui-palette-primary-main) 16%, transparent), 0 3px 10px color-mix(in srgb, black 14%, transparent), inset 0 1px 0 color-mix(in srgb, white 40%, transparent), inset 0 -1px 0 color-mix(in srgb, black 18%, transparent)",
+          position: "relative",
+          overflow: "hidden",
+          "&::before": {
+            content: "\"\"",
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(180deg, color-mix(in srgb, white 22%, transparent) 0%, transparent 42%)",
+            pointerEvents: "none",
+          },
+          "&::after": {
+            content: "\"\"",
+            position: "absolute",
+            left: "2%",
+            right: "2%",
+            bottom: 0,
+            height: 1,
+            background:
+              "linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--mui-palette-primary-main) 44%, transparent) 50%, transparent 100%)",
+            pointerEvents: "none",
+          },
         }}
       >
         <Toolbar
@@ -136,30 +170,41 @@ export function AppHeader({ userEmail }: AppHeaderProps) {
             </Box>
           </Box>
 
-          <Stack spacing={{ xs: 0.25, sm: 0.45 }} alignItems="flex-end" sx={{ minWidth: 0 }}>
-            <Typography
-              variant="body2"
-              color="text.primary"
-              noWrap
+          <Stack spacing={{ xs: 0.4, sm: 0.6 }} alignItems="flex-end" sx={{ minWidth: 0 }}>
+            <Button
+              color="inherit"
+              variant="outlined"
+              size="small"
+              onClick={() => router.push(toCanonicalPath("/app/user"))}
               sx={{
-                maxWidth: { xs: 130, sm: 190, md: 240 },
-                px: 1,
-                py: 0.35,
-                borderRadius: 999,
                 border: "1px solid",
                 borderColor:
                   "color-mix(in srgb, var(--mui-palette-primary-main) 26%, transparent)",
                 background:
                   "color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)",
-                fontWeight: 600,
-                fontSize: { xs: "0.65rem", sm: "0.72rem" },
+                fontWeight: 700,
                 display: { xs: "none", sm: "block" },
+                transition: "transform 140ms ease, box-shadow 140ms ease",
+                "&:hover": {
+                  transform: "translateY(-1px)",
+                  boxShadow:
+                    "0 6px 14px color-mix(in srgb, var(--mui-palette-primary-main) 20%, transparent)",
+                },
+                "&:focus-visible": {
+                  outline: "2px solid var(--mui-palette-primary-main)",
+                  outlineOffset: 2,
+                },
+                ...userActionButtonSx,
               }}
               title={userEmail ?? undefined}
             >
-              {userEmail}
-            </Typography>
-            <LogoutButton />
+              {displayUserName}
+            </Button>
+            <LogoutButton
+              sx={{
+                ...userActionButtonSx,
+              }}
+            />
           </Stack>
         </Toolbar>
       </Box>

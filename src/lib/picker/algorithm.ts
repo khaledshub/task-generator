@@ -44,12 +44,18 @@ export function selectTaskForIntent(
   const random = options.random ?? Math.random;
 
   const contextAndEnergyMatches = tasks.filter((task) => {
-    const allowedEnergies = MODE_TO_ALLOWED_ENERGIES[intent.modeChoice];
+    if (intent.contextChoice && task.context !== intent.contextChoice) {
+      return false;
+    }
 
-    return (
-      task.context === intent.contextChoice &&
-      allowedEnergies.includes(task.energy)
-    );
+    if (intent.modeChoice) {
+      const allowedEnergies = MODE_TO_ALLOWED_ENERGIES[intent.modeChoice];
+      if (!allowedEnergies.includes(task.energy)) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
   if (contextAndEnergyMatches.length === 0) {
@@ -59,27 +65,32 @@ export function selectTaskForIntent(
     };
   }
 
-  const strictTimeMatches = contextAndEnergyMatches.filter(
-    (task) => task.timeEstimateMinutes <= intent.timeAvailableMinutes,
-  );
+  let usedTimeFallback = false;
+  let candidatePool = contextAndEnergyMatches;
 
-  const usedTimeFallback = strictTimeMatches.length === 0;
+  if (intent.timeAvailableMinutes !== undefined) {
+    const selectedTime = intent.timeAvailableMinutes;
+    const strictTimeMatches = contextAndEnergyMatches.filter(
+      (task) => task.timeEstimateMinutes <= selectedTime,
+    );
 
-  const candidatePool =
-    strictTimeMatches.length > 0
-      ? strictTimeMatches
-      : contextAndEnergyMatches.filter(
-          (task) =>
-            task.timeEstimateMinutes <=
-            intent.timeAvailableMinutes + TIME_FALLBACK_WINDOW_MINUTES,
-        );
+    usedTimeFallback = strictTimeMatches.length === 0;
+    candidatePool =
+      strictTimeMatches.length > 0
+        ? strictTimeMatches
+        : contextAndEnergyMatches.filter(
+            (task) =>
+              task.timeEstimateMinutes <=
+              selectedTime + TIME_FALLBACK_WINDOW_MINUTES,
+          );
 
-  if (candidatePool.length === 0) {
-    return {
-      status: "no_match",
-      reason:
-        "No tasks fit your selected time. Add shorter tasks or choose more time.",
-    };
+    if (candidatePool.length === 0) {
+      return {
+        status: "no_match",
+        reason:
+          "No tasks fit your selected time. Add shorter tasks or choose more time.",
+      };
+    }
   }
 
   const scoredCandidates = candidatePool.map((task) =>
@@ -112,7 +123,9 @@ export function scoreCandidate(
   const hasRecentPickPenalty = fairness.recentPickedTaskIds.has(task.id);
   const hasRecentDonePenalty = fairness.recentlyDoneTaskIds.has(task.id);
   const isTimeFallbackCandidate =
-    usedTimeFallback && task.timeEstimateMinutes > intent.timeAvailableMinutes;
+    usedTimeFallback &&
+    intent.timeAvailableMinutes !== undefined &&
+    task.timeEstimateMinutes > intent.timeAvailableMinutes;
 
   if (hasAvoidingBoost) {
     weight *= AVOIDING_TASK_WEIGHT_MULTIPLIER;
@@ -171,8 +184,24 @@ export function buildWhyLine(
   candidate: CandidateScore,
   intent: IntentInput,
 ): string {
+  const filters: string[] = [];
+
+  if (intent.contextChoice) {
+    filters.push(formatLabel(intent.contextChoice));
+  }
+
+  if (intent.timeAvailableMinutes !== undefined) {
+    filters.push(`${intent.timeAvailableMinutes}min`);
+  }
+
+  if (intent.modeChoice) {
+    filters.push(formatLabel(intent.modeChoice));
+  }
+
   const reasons = [
-    `Matches ${formatLabel(intent.contextChoice)} + ${intent.timeAvailableMinutes}min + ${formatLabel(intent.modeChoice)}`,
+    filters.length > 0
+      ? `Matches ${filters.join(" + ")}`
+      : "No filters selected; picked randomly from your available tasks",
   ];
 
   if (candidate.hasAvoidingBoost) {
