@@ -6,6 +6,7 @@ import { requireSessionUserId } from "@/lib/auth/session";
 import { TASK_CONTEXT_LABELS, TASK_ENERGY_LABELS, TASK_TYPE_LABELS } from "@/lib/tasks/config";
 import { toStringArray } from "@/lib/tasks/types";
 import { Checklist } from "@/components/tasks/checklist";
+import { TaskAiPendingWatcher } from "@/components/tasks/task-ai-pending-watcher";
 import { TaskTipsAssistant } from "@/components/tasks/task-tips-assistant";
 import { TaskQuickActions } from "@/components/tasks/task-quick-actions";
 
@@ -60,12 +61,18 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
 
   const checklistItems = toStringArray(task.checklistItems);
   const tips = toStringArray(task.tips);
-  const checklistItemsWithTips = Array.from(new Set([...checklistItems, ...tips]));
   const isChecklistGenerating =
     task.generateAiStepsEnabled && task.aiStepsGenerationStatus === "PENDING";
+  const checklistItemsForTracking =
+    checklistItems.length > 0
+      ? checklistItems
+      : task.generateAiStepsEnabled
+        ? []
+        : [task.starterStep];
 
   return (
     <Stack spacing={3}>
+      <TaskAiPendingWatcher isPending={isChecklistGenerating} />
       <Paper
         sx={{
           p: 2.5,
@@ -126,16 +133,17 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
             <Stack direction="row" spacing={1} alignItems="center">
               <CircularProgress size={16} />
               <Typography color="text.secondary">
-                Checklist is generating... you can come back in a moment.
+                Generating GenAI checklist... your checkboxes will appear shortly.
               </Typography>
             </Stack>
-          ) : null}
-          <Checklist
-            key={`task-checklist:${task.id}`}
-            items={checklistItemsWithTips}
-            emptyMessage="No checklist items."
-            storageKey={`task-checklist:${task.id}`}
-          />
+          ) : (
+            <Checklist
+              key={`task-checklist:${task.id}`}
+              items={checklistItemsForTracking}
+              emptyMessage="No checklist items."
+              storageKey={`task-checklist:${task.id}`}
+            />
+          )}
 
           <Divider />
 

@@ -3,12 +3,27 @@
 import { Button } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { signOut } from "next-auth/react";
+import { clearGuestBrowserMarkers } from "@/components/auth/guest-session-guard";
 
 interface LogoutButtonProps {
   sx?: SxProps<Theme>;
+  isGuest?: boolean;
 }
 
-export function LogoutButton({ sx }: LogoutButtonProps) {
+export function LogoutButton({ sx, isGuest = false }: LogoutButtonProps) {
+  async function onLogout() {
+    if (isGuest) {
+      await fetch("/api/auth/guest/cleanup", {
+        method: "POST",
+      }).catch(() => null);
+      clearGuestBrowserMarkers();
+      await signOut({ callbackUrl: "/" });
+      return;
+    }
+
+    await signOut({ callbackUrl: "/login" });
+  }
+
   return (
     <Button
       color="inherit"
@@ -22,7 +37,7 @@ export function LogoutButton({ sx }: LogoutButtonProps) {
         lineHeight: 1.1,
         ...sx,
       }}
-      onClick={() => signOut({ callbackUrl: "/login" })}
+      onClick={() => void onLogout()}
     >
       Logout
     </Button>

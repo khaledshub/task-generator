@@ -80,6 +80,10 @@ export function Checklist({ items, emptyMessage, storageKey }: ChecklistProps) {
   );
 
   if (normalizedItems.length === 0) {
+    if (!emptyMessage.trim()) {
+      return null;
+    }
+
     return <Typography color="text.secondary">{emptyMessage}</Typography>;
   }
 

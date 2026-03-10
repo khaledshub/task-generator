@@ -136,7 +136,10 @@ Return JSON only:
 }
 
 Rules:
-- tips: exactly 3 practical best-practice/get-started tips for this task, <= 120 chars each.
+- tips: exactly 3 implementation tips for this task, <= 120 chars each.
+  - Focus on execution quality: approach, pitfalls, checks, and concrete decisions.
+  - Do NOT use checklist milestone labels (Start, In Progress, Done).
+  - Do NOT describe task status; describe how to implement the work well.
 - answer: if question is present, choose the best structure for the user's intent.
   - If they ask for an email/message/template, return a ready-to-copy draft with placeholders.
   - If they ask for steps, return numbered steps.
@@ -155,7 +158,7 @@ function parseInsightsResponse(rawText: string): { tips: string[]; answer?: stri
       answer?: unknown;
     };
 
-    const tips = toShortStringArray(parsed.tips, 3);
+    const tips = normalizeImplementationTips(toShortStringArray(parsed.tips, 3));
     const answer = typeof parsed.answer === "string" ? parsed.answer.trim() : undefined;
 
     return {
@@ -164,7 +167,7 @@ function parseInsightsResponse(rawText: string): { tips: string[]; answer?: stri
     };
   } catch {
     return {
-      tips: [],
+      tips: normalizeImplementationTips([]),
       answer: rawText || undefined,
     };
   }
@@ -180,6 +183,34 @@ function toShortStringArray(value: unknown, maxItems: number): string[] {
     .map((item) => item.trim())
     .filter((item) => item.length > 0)
     .slice(0, maxItems);
+}
+
+function normalizeImplementationTips(rawTips: string[]): string[] {
+  const blockedPrefixes = [/^start:/i, /^in\s*progress:/i, /^done:/i];
+
+  const cleaned = rawTips
+    .map((tip) => tip.replace(/\s+/g, " ").trim())
+    .filter((tip) => tip.length > 0)
+    .filter((tip) => blockedPrefixes.every((pattern) => !pattern.test(tip)));
+
+  const unique = Array.from(new Set(cleaned)).slice(0, 3);
+
+  const fallback = [
+    "Define the exact output first, then implement only what supports it.",
+    "Handle the highest-risk edge case early before polishing.",
+    "Add a quick verification check to confirm the result works end-to-end.",
+  ];
+
+  for (const item of fallback) {
+    if (unique.length >= 3) {
+      break;
+    }
+    if (!unique.includes(item)) {
+      unique.push(item);
+    }
+  }
+
+  return unique.slice(0, 3);
 }
 
 function extractJsonObject(raw: string): string {

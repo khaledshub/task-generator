@@ -194,7 +194,49 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
 
   return (
     <Stack spacing={3}>
-      <Paper sx={{ p: 3 }}>
+      <Paper
+        sx={(theme) => {
+          const isDark = theme.palette.mode === "dark";
+          return {
+            p: 3,
+            position: "relative",
+            overflow: "hidden",
+            borderRadius: 3,
+            border: isDark
+              ? "1px solid rgba(148,163,184,0.26)"
+              : "1px solid rgba(255,255,255,0.26)",
+            background: isDark
+              ? "linear-gradient(120deg, rgba(15,23,42,0.98), rgba(30,64,175,0.9), rgba(8,145,178,0.85))"
+              : "linear-gradient(120deg, rgba(30,64,175,0.96), rgba(37,99,235,0.92), rgba(14,165,233,0.88))",
+            color: "common.white",
+            boxShadow: isDark
+              ? "0 22px 40px rgba(2,6,23,0.55)"
+              : "0 22px 40px rgba(29,78,216,0.34)",
+            transition: "transform 220ms ease, box-shadow 220ms ease",
+            "@keyframes pickFilterGlowPulse": {
+              "0%": { opacity: 0.42, transform: "scale(0.96)" },
+              "50%": { opacity: 0.7, transform: "scale(1.03)" },
+              "100%": { opacity: 0.42, transform: "scale(0.96)" },
+            },
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              inset: "-22%",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle at center, rgba(191,219,254,0.25), rgba(125,211,252,0.2), transparent 66%)",
+              pointerEvents: "none",
+              animation: "pickFilterGlowPulse 4.5s ease-in-out infinite",
+            },
+            "&:hover": {
+              transform: "translateY(-3px) scale(1.01)",
+              boxShadow: isDark
+                ? "0 28px 52px rgba(2,6,23,0.62)"
+                : "0 28px 52px rgba(29,78,216,0.42)",
+            },
+          };
+        }}
+      >
         <Stack spacing={2}>
           <Typography variant="h5" component="h2" fontWeight={700}>
             Feeling today
@@ -202,12 +244,17 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
 
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <FormControl fullWidth>
-              <InputLabel id="picker-context-label">Context</InputLabel>
+              <InputLabel
+                id="picker-context-label"
+                shrink={(contextChoice ?? "") !== ""}
+                sx={{ color: "rgba(255,255,255,0.82)" }}
+              >
+                Context
+              </InputLabel>
               <Select
                 labelId="picker-context-label"
                 label="Context"
                 value={contextChoice ?? ""}
-                displayEmpty
                 onChange={(event) =>
                   setContextChoice(
                     event.target.value
@@ -215,10 +262,14 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
                       : null,
                   )
                 }
+                sx={{
+                  color: "common.white",
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: "rgba(255,255,255,0.35)",
+                  },
+                  "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.9)" },
+                }}
               >
-                <MenuItem value="">
-                  <em>Any</em>
-                </MenuItem>
                 {INTENT_CONTEXT_OPTIONS.map((context) => (
                   <MenuItem key={context} value={context}>
                     {TASK_CONTEXT_LABELS[context]}
@@ -228,12 +279,17 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel id="picker-mode-label">Mode</InputLabel>
+              <InputLabel
+                id="picker-mode-label"
+                shrink={(modeChoice ?? "") !== ""}
+                sx={{ color: "rgba(255,255,255,0.82)" }}
+              >
+                Mode
+              </InputLabel>
               <Select
                 labelId="picker-mode-label"
                 label="Mode"
                 value={modeChoice ?? ""}
-                displayEmpty
                 onChange={(event) =>
                   setModeChoice(
                     event.target.value
@@ -241,10 +297,14 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
                       : null,
                   )
                 }
+                sx={{
+                  color: "common.white",
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: "rgba(255,255,255,0.35)",
+                  },
+                  "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.9)" },
+                }}
               >
-                <MenuItem value="">
-                  <em>Any</em>
-                </MenuItem>
                 {INTENT_MODE_OPTIONS.map((mode) => (
                   <MenuItem key={mode} value={mode}>
                     {INTENT_MODE_LABELS[mode]}
@@ -254,12 +314,17 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
             </FormControl>
 
             <FormControl fullWidth>
-              <InputLabel id="picker-time-label">Time available</InputLabel>
+              <InputLabel
+                id="picker-time-label"
+                shrink={(timeChoice === null ? "" : String(timeChoice)) !== ""}
+                sx={{ color: "rgba(255,255,255,0.82)" }}
+              >
+                Time available
+              </InputLabel>
               <Select
                 labelId="picker-time-label"
                 label="Time available"
                 value={timeChoice === null ? "" : String(timeChoice)}
-                displayEmpty
                 onChange={(event) =>
                   setTimeChoice(
                     event.target.value
@@ -267,10 +332,14 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
                       : null,
                   )
                 }
+                sx={{
+                  color: "common.white",
+                  ".MuiOutlinedInput-notchedOutline": {
+                    borderColor: "rgba(255,255,255,0.35)",
+                  },
+                  "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.9)" },
+                }}
               >
-                <MenuItem value="">
-                  <em>Any</em>
-                </MenuItem>
                 {INTENT_TIME_OPTIONS.map((minutes) => (
                   <MenuItem key={minutes} value={String(minutes)}>
                     {INTENT_TIME_LABELS[minutes]}
@@ -284,7 +353,16 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
             variant="contained"
             onClick={handlePickTask}
             disabled={isPicking || isRecordingAction}
-            sx={{ alignSelf: "flex-start" }}
+            sx={{
+              alignSelf: "flex-start",
+              fontWeight: 700,
+              bgcolor: "rgba(255,255,255,0.22)",
+              color: "common.white",
+              border: "1px solid rgba(255,255,255,0.34)",
+              "&:hover": {
+                bgcolor: "rgba(255,255,255,0.28)",
+              },
+            }}
           >
             {isPicking ? "Picking..." : "Pick my task"}
           </Button>

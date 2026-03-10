@@ -7,6 +7,7 @@ import { LogoutButton } from "@/components/logout-button";
 
 interface AppHeaderProps {
   userEmail?: string | null;
+  isGuest?: boolean;
 }
 
 const NAV_ITEMS = [
@@ -24,12 +25,12 @@ const NAV_ITEMS = [
   },
 ];
 
-export function AppHeader({ userEmail }: AppHeaderProps) {
+export function AppHeader({ userEmail, isGuest = false }: AppHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
   const lastScrollYRef = useRef(0);
-  const displayUserName = userEmail?.split("@")[0] ?? "";
+  const displayUserName = isGuest ? "Guest" : (userEmail?.split("@")[0] ?? "");
   const userActionButtonSx = {
     width: { xs: 96, sm: 132 },
     fontSize: { xs: "0.62rem", sm: "0.78rem" },
@@ -201,6 +202,7 @@ export function AppHeader({ userEmail }: AppHeaderProps) {
               {displayUserName}
             </Button>
             <LogoutButton
+              isGuest={isGuest}
               sx={{
                 ...userActionButtonSx,
               }}

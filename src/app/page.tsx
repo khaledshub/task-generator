@@ -8,6 +8,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { JoinAsGuestSection } from "@/components/auth/join-as-guest-section";
 import { PublicHeader } from "@/components/navigation/public-header";
 import prisma from "@/lib/prisma";
 
@@ -73,6 +74,7 @@ export default async function HomePage() {
                 <Button href="/login" variant="outlined">
                   Log in
                 </Button>
+                <JoinAsGuestSection />
                 <Button href="/" variant="text">
                   Refresh status
                 </Button>

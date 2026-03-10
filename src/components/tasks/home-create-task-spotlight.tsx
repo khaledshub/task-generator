@@ -12,7 +12,7 @@ import {
   Typography,
 } from "@mui/material";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { TaskForm } from "@/components/tasks/task-form";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { AppDrawer } from "@/components/ui/app-drawer";
@@ -29,6 +29,7 @@ interface HomeCreateTaskSpotlightProps {
   description?: string;
   buttonLabel?: string;
   showEnhancements?: boolean;
+  showProductivityTipsButton?: boolean;
 }
 
 export function HomeCreateTaskSpotlight({
@@ -38,19 +39,35 @@ export function HomeCreateTaskSpotlight({
   description = "Add a task directly from home. Your task is saved to your account and linked to your user ID so it is available every time you log back in.",
   buttonLabel = "Create task",
   showEnhancements = false,
+  showProductivityTipsButton = true,
 }: HomeCreateTaskSpotlightProps) {
   const [open, setOpen] = useState(false);
   const [isInfoDrawerOpen, setIsInfoDrawerOpen] = useState(false);
   const [localStatus, setLocalStatus] = useState<TaskFormState>({ statusState: "idle" });
 
-  function handleStateChange(nextState: TaskFormState) {
-    setLocalStatus(nextState);
-    onStatusChange?.(nextState);
+  const handleStateChange = useCallback(
+    (nextState: TaskFormState) => {
+      setLocalStatus((current) => {
+        if (
+          current.statusState === nextState.statusState &&
+          current.message === nextState.message &&
+          current.aiStatus === nextState.aiStatus &&
+          current.aiMessage === nextState.aiMessage &&
+          current.createdTaskId === nextState.createdTaskId
+        ) {
+          return current;
+        }
 
-    if (nextState.statusState === "success") {
-      setOpen(false);
-    }
-  }
+        return nextState;
+      });
+      onStatusChange?.(nextState);
+
+      if (nextState.statusState === "success") {
+        setOpen(false);
+      }
+    },
+    [onStatusChange],
+  );
 
   return (
     <>
@@ -139,7 +156,7 @@ export function HomeCreateTaskSpotlight({
               {buttonLabel}
             </Button>
           </motion.div>
-          {showEnhancements ? (
+          {showEnhancements && showProductivityTipsButton ? (
             <Button variant="outlined" onClick={() => setIsInfoDrawerOpen(true)}>
               Productivity tips
             </Button>

@@ -196,6 +196,25 @@ export async function archiveTaskAction(taskId: string): Promise<void> {
 }
 
 /**
+ * Restores an archived task owned by the authenticated user.
+ */
+export async function unarchiveTaskAction(taskId: string): Promise<void> {
+  const userId = await requireSessionUserId();
+
+  await prisma.task.updateMany({
+    where: {
+      id: taskId,
+      userId,
+    },
+    data: {
+      isArchived: false,
+    },
+  });
+
+  revalidatePath("/app/tasks");
+}
+
+/**
  * Permanently deletes a task owned by the authenticated user.
  */
 export async function deleteTaskAction(taskId: string): Promise<void> {

@@ -1,7 +1,6 @@
 import {
   Alert,
   Box,
-  Button,
   Chip,
   Divider,
   Paper,
@@ -11,6 +10,10 @@ import {
 import prisma from "@/lib/prisma";
 import { requireSessionUserId } from "@/lib/auth/session";
 import { HomeCreateTaskSpotlight } from "@/components/tasks/home-create-task-spotlight";
+import {
+  ArchivedStatusChip,
+  TaskRowActions,
+} from "@/components/tasks/task-row-actions";
 import { PagePurposeHeader } from "@/components/ui/page-purpose-header";
 import {
   TASK_CONTEXT_LABELS,
@@ -19,7 +22,6 @@ import {
   TASK_TYPE_LABELS,
 } from "@/lib/tasks/config";
 import { toStringArray } from "@/lib/tasks/types";
-import { archiveTaskAction, deleteTaskAction } from "./actions";
 
 interface TasksPageProps {
   searchParams: Promise<{
@@ -72,8 +74,9 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
       <HomeCreateTaskSpotlight
         title="Task command center"
         description="Create a task in-place without leaving this page. Saved tasks are linked to your account and available across sessions."
-        buttonLabel="New task modal"
+        buttonLabel="Create Task"
         showEnhancements
+        showProductivityTipsButton={false}
       />
 
       <Paper sx={{ p: 3 }}>
@@ -168,46 +171,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
                       Starter step: <strong>{task.starterStep}</strong>
                     </Typography>
 
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                      <Button
-                        href={`/app/tasks/${task.id}`}
-                        variant={isFocusedTask ? "contained" : "outlined"}
-                        size="small"
-                      >
-                        {isFocusedTask ? "Open task" : "View"}
-                      </Button>
-
-                      <Button
-                        href={`/app/tasks/${task.id}/edit`}
-                        variant="outlined"
-                        size="small"
-                      >
-                        Edit
-                      </Button>
-
-                      <form action={archiveTaskAction.bind(null, task.id)}>
-                        <Button
-                          type="submit"
-                          variant="outlined"
-                          color="warning"
-                          size="small"
-                        >
-                          Archive
-                        </Button>
-                      </form>
-
-                      <form action={deleteTaskAction.bind(null, task.id)}>
-                        <Button
-                          type="submit"
-                          variant="outlined"
-                          color="error"
-                          size="small"
-                          sx={{ color: "error.main", borderColor: "error.main" }}
-                        >
-                          Delete
-                        </Button>
-                      </form>
-                    </Stack>
+                    <TaskRowActions taskId={task.id} />
                   </Stack>
                   <Divider sx={{ my: 2 }} />
                 </Box>
@@ -225,7 +189,7 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
           ) : (
             archivedTasks.map((task) => (
               <Stack key={task.id} direction="row" spacing={1} alignItems="center">
-                <Chip size="small" color="warning" label="Archived" />
+                <ArchivedStatusChip taskId={task.id} />
                 <Typography color="text.secondary">{task.title}</Typography>
               </Stack>
             ))

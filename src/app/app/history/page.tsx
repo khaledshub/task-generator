@@ -125,13 +125,46 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
         subtitle="Review task timeline and status events to track momentum and outcomes."
       />
 
-      <Paper sx={{ p: 3 }}>
+      <Paper
+        sx={{
+          p: 3,
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: 3,
+          border: "1px solid rgba(255,255,255,0.26)",
+          background:
+            "linear-gradient(120deg, rgba(30,64,175,0.96), rgba(37,99,235,0.92), rgba(14,165,233,0.88))",
+          color: "common.white",
+          boxShadow: "0 22px 40px rgba(29,78,216,0.34)",
+          transition: "transform 220ms ease, box-shadow 220ms ease",
+          "@keyframes historyFilterGlowPulse": {
+            "0%": { opacity: 0.42, transform: "scale(0.96)" },
+            "50%": { opacity: 0.7, transform: "scale(1.03)" },
+            "100%": { opacity: 0.42, transform: "scale(0.96)" },
+          },
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            inset: "-22%",
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle at center, rgba(191,219,254,0.25), rgba(125,211,252,0.2), transparent 66%)",
+            pointerEvents: "none",
+            animation: "historyFilterGlowPulse 4.5s ease-in-out infinite",
+          },
+          "&:hover": {
+            transform: "translateY(-3px) scale(1.01)",
+            boxShadow: "0 28px 52px rgba(29,78,216,0.42)",
+          },
+        }}
+      >
         <Stack
           component="form"
           action="/app/history"
           method="get"
           spacing={2}
           direction={{ xs: "column", sm: "row" }}
+          sx={{ position: "relative", zIndex: 1 }}
         >
           <TextField
             label="From"
@@ -139,6 +172,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
             defaultValue={from ?? ""}
             name="from"
             slotProps={{ inputLabel: { shrink: true } }}
+            sx={historyFilterFieldSx}
           />
           <TextField
             label="To"
@@ -146,8 +180,21 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
             defaultValue={to ?? ""}
             name="to"
             slotProps={{ inputLabel: { shrink: true } }}
+            sx={historyFilterFieldSx}
           />
-          <Button type="submit" variant="outlined">
+          <Button
+            type="submit"
+            variant="outlined"
+            sx={{
+              color: "common.white",
+              borderColor: "rgba(255,255,255,0.45)",
+              fontWeight: 700,
+              "&:hover": {
+                borderColor: "rgba(255,255,255,0.7)",
+                bgcolor: "rgba(255,255,255,0.12)",
+              },
+            }}
+          >
             Filter
           </Button>
         </Stack>
@@ -325,3 +372,19 @@ function toEventChipColor(action: PickAction): "info" | "primary" | "success" | 
 
   return "warning";
 }
+
+const historyFilterFieldSx = {
+  minWidth: { xs: "100%", sm: 180 },
+  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.82)" },
+  "& .MuiInputLabel-root.Mui-focused": { color: "common.white" },
+  "& .MuiInputBase-input": { color: "common.white" },
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderColor: "rgba(255,255,255,0.35)",
+  },
+  "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": {
+    borderColor: "rgba(255,255,255,0.6)",
+  },
+  "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
+    borderColor: "rgba(255,255,255,0.8)",
+  },
+};

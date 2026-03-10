@@ -3,12 +3,13 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { SignupForm } from "@/components/auth/signup-form";
 import { PublicHeader } from "@/components/navigation/public-header";
+import { isGuestEmail } from "@/lib/auth/guest";
 import { authOptions } from "@/lib/auth/options";
 
 export default async function SignupPage() {
   const session = await getServerSession(authOptions);
 
-  if (session?.user) {
+  if (session?.user && !isGuestEmail(session.user.email)) {
     redirect("/app");
   }
 

@@ -1,12 +1,12 @@
-# AGENT.md — Codex Multi-Agent Workflow
+# AGENTS.md — Codex Multi-Agent Workflow
 
 ## Mandatory Pre-Task Check
-- Before starting any task, open and review `AGENT.md`.
-- Treat this file as the first required source of project instructions for every run.
+- Run logs to the user on every action you take that you can to a conclusion for. Log the conclusion to the user.
+- Treat this AGENTS.md file as the first required source of project instructions for every run.
 
 ## Placement
-- Keep this file at repository root as `AGENT.md`.
-- This repository may also include `AGENTS.md` conventions elsewhere; this file is the Codex execution source for this project.
+- Keep this file at repository root as `AGENTS.md`.
+- This file is the Codex execution source for this project.
 
 ## Operating Model
 All tasks run through a coordinated multi-agent flow with explicit ownership and quality gates.

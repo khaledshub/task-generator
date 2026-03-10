@@ -74,16 +74,6 @@ export function TaskForm({
   const isCreateMode = mode === "create";
 
   useEffect(() => {
-    const effectiveState: TaskFormState = {
-      ...state,
-      aiStatus: localAiStatus ?? state.aiStatus,
-      aiMessage: localAiMessage ?? state.aiMessage,
-    };
-
-    onStateChange?.(effectiveState);
-  }, [localAiMessage, localAiStatus, onStateChange, state]);
-
-  useEffect(() => {
     const request = state.aiGenerationRequest;
     if (!request || state.statusState !== "success") {
       return;
@@ -149,6 +139,16 @@ export function TaskForm({
       }
     })();
   }, [state.aiGenerationRequest, state.statusState]);
+
+  useEffect(() => {
+    const effectiveState: TaskFormState = {
+      ...state,
+      aiStatus: localAiStatus ?? state.aiStatus,
+      aiMessage: localAiMessage ?? state.aiMessage,
+    };
+
+    onStateChange?.(effectiveState);
+  }, [localAiMessage, localAiStatus, onStateChange, state]);
 
   const aiTipsStatus = localAiStatus ?? state.aiStatus;
   const aiTipsMessage = localAiMessage ?? state.aiMessage;

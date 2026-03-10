@@ -72,15 +72,20 @@ function SaveStatusBanner({
       <Alert
         severity={status.statusState === "success" ? "success" : "error"}
         action={
-          <Stack direction="row" spacing={0.5} alignItems="center">
+          <Stack direction="row" spacing={0.75} alignItems="center">
             {status.statusState === "success" && status.createdTaskId ? (
               <Button
-                color="inherit"
+                variant="contained"
                 size="small"
-                href={`/app/tasks?focusTask=${status.createdTaskId}#task-${status.createdTaskId}`}
-                sx={{ fontWeight: 700 }}
+                href={`/app/tasks/${status.createdTaskId}`}
+                sx={{
+                  fontWeight: 700,
+                  bgcolor: "common.white",
+                  color: "success.dark",
+                  "&:hover": { bgcolor: "grey.100" },
+                }}
               >
-                Open in Tasks
+                Go to task
               </Button>
             ) : null}
             <IconButton
@@ -94,8 +99,12 @@ function SaveStatusBanner({
           </Stack>
         }
       >
-        {status.message ??
-          (status.statusState === "success" ? "Task created." : "Could not save task.")}
+        <Typography component="span">
+          {status.message ??
+            (status.statusState === "success"
+              ? "Task created."
+              : "Could not save task.")}
+        </Typography>
       </Alert>
       {status.aiStatus && status.aiMessage ? (
         <Alert severity={status.aiStatus}>{status.aiMessage}</Alert>
@@ -232,14 +241,17 @@ export function HomeDashboardShell({
 
               <Stack direction="row" spacing={1.25} sx={{ pt: 1.5 }}>
                 <FormControl fullWidth size="small">
-                  <InputLabel id="home-pick-context-label" sx={{ color: "rgba(255,255,255,0.82)" }}>
+                  <InputLabel
+                    id="home-pick-context-label"
+                    shrink={pickContextFilter !== ""}
+                    sx={{ color: "rgba(255,255,255,0.82)" }}
+                  >
                     Context
                   </InputLabel>
                   <Select
                     labelId="home-pick-context-label"
                     label="Context"
                     value={pickContextFilter}
-                    displayEmpty
                     onChange={(event) =>
                       setPickContextFilter(event.target.value as (typeof TASK_CONTEXTS)[number] | "")
                     }
@@ -251,9 +263,6 @@ export function HomeDashboardShell({
                       "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.9)" },
                     }}
                   >
-                    <MenuItem value="">
-                      <em>Any</em>
-                    </MenuItem>
                     {TASK_CONTEXTS.map((context) => (
                       <MenuItem key={context} value={context}>
                         {TASK_CONTEXT_LABELS[context]}
@@ -263,14 +272,17 @@ export function HomeDashboardShell({
                 </FormControl>
 
                 <FormControl fullWidth size="small">
-                  <InputLabel id="home-pick-mode-label" sx={{ color: "rgba(255,255,255,0.82)" }}>
+                  <InputLabel
+                    id="home-pick-mode-label"
+                    shrink={pickModeChoice !== ""}
+                    sx={{ color: "rgba(255,255,255,0.82)" }}
+                  >
                     Mode
                   </InputLabel>
                   <Select
                     labelId="home-pick-mode-label"
                     label="Mode"
                     value={pickModeChoice}
-                    displayEmpty
                     onChange={(event) =>
                       setPickModeChoice(event.target.value as (typeof INTENT_MODE_OPTIONS)[number] | "")
                     }
@@ -282,9 +294,6 @@ export function HomeDashboardShell({
                       "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.9)" },
                     }}
                   >
-                    <MenuItem value="">
-                      <em>Any</em>
-                    </MenuItem>
                     {INTENT_MODE_OPTIONS.map((mode) => (
                       <MenuItem key={mode} value={mode}>
                         {INTENT_MODE_LABELS[mode]}
@@ -294,14 +303,17 @@ export function HomeDashboardShell({
                 </FormControl>
 
                 <FormControl fullWidth size="small">
-                  <InputLabel id="home-pick-time-label" sx={{ color: "rgba(255,255,255,0.82)" }}>
+                  <InputLabel
+                    id="home-pick-time-label"
+                    shrink={pickTimeChoice !== ""}
+                    sx={{ color: "rgba(255,255,255,0.82)" }}
+                  >
                     Time
                   </InputLabel>
                   <Select
                     labelId="home-pick-time-label"
                     label="Time"
                     value={pickTimeChoice}
-                    displayEmpty
                     onChange={(event) =>
                       setPickTimeChoice(
                         event.target.value
@@ -317,9 +329,6 @@ export function HomeDashboardShell({
                       "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.9)" },
                     }}
                   >
-                    <MenuItem value="">
-                      <em>Any</em>
-                    </MenuItem>
                     {INTENT_TIME_OPTIONS.map((time) => (
                       <MenuItem key={time} value={time}>
                         {INTENT_TIME_LABELS[time]}

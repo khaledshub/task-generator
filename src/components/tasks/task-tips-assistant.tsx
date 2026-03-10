@@ -54,6 +54,8 @@ interface TaskInsightsResponse {
   error?: string;
 }
 
+const TASK_TIPS_CACHE_PREFIX = "task-tips-cache:";
+
 export function TaskTipsAssistant({
   taskId,
   title,
@@ -64,6 +66,7 @@ export function TaskTipsAssistant({
   localModel,
 }: TaskTipsAssistantProps) {
   const storageKey = `task-tips-chat:${taskId}`;
+  const tipsCacheKey = `${TASK_TIPS_CACHE_PREFIX}${taskId}`;
   const [tips, setTips] = useState<string[]>(initialTips);
   const [tipsStatus, setTipsStatus] = useState<"idle" | "loading" | "error">(
     initialTips.length > 0 ? "idle" : "loading",
@@ -126,13 +129,23 @@ export function TaskTipsAssistant({
   );
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (initialTips.length > 0) {
+      window.localStorage.setItem(tipsCacheKey, JSON.stringify(initialTips.slice(0, 3)));
+    }
+  }, [initialTips, tipsCacheKey]);
+
+  useEffect(() => {
     if (initialTips.length > 0) {
       return;
     }
 
     void generateTips();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialTips.length]);
 
   useEffect(() => {
     if (!isChatOpen || !chatScrollRef.current) {
@@ -169,6 +182,15 @@ export function TaskTipsAssistant({
     setTipsStatus("loading");
     setTipsError(null);
 
+    if (typeof window !== "undefined") {
+      const cachedTips = readCachedTips(tipsCacheKey);
+      if (cachedTips.length > 0) {
+        setTips(cachedTips);
+        setTipsStatus("idle");
+        return;
+      }
+    }
+
     const response = await fetch("/api/ai/task-insights", {
       method: "POST",
       headers: {
@@ -195,6 +217,9 @@ export function TaskTipsAssistant({
     if (Array.isArray(data.tips) && data.tips.length > 0) {
       setTips(data.tips);
       setTipsStatus("idle");
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(tipsCacheKey, JSON.stringify(data.tips.slice(0, 3)));
+      }
       return;
     }
 
@@ -298,20 +323,22 @@ export function TaskTipsAssistant({
         </Stack>
       ) : null}
 
-      <Box>
-        <Button
-          onClick={() => {
-            updateChatState((current) => ({
-              ...current,
-              isChatArchived: false,
-              isChatOpen: true,
-            }));
-          }}
-          variant="outlined"
-        >
-          {isChatArchived ? "Open Archived Chat" : "Learn More"}
-        </Button>
-      </Box>
+      {!isChatOpen ? (
+        <Box>
+          <Button
+            onClick={() => {
+              updateChatState((current) => ({
+                ...current,
+                isChatArchived: false,
+                isChatOpen: true,
+              }));
+            }}
+            variant="outlined"
+          >
+            {isChatArchived ? "Open Archived Chat" : "Learn More"}
+          </Button>
+        </Box>
+      ) : null}
 
       {isChatOpen && !isChatArchived ? (
         <Paper variant="outlined" sx={{ p: 1.5 }}>
@@ -407,6 +434,32 @@ export function TaskTipsAssistant({
       ) : null}
     </Stack>
   );
+}
+
+function readCachedTips(cacheKey: string): string[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const raw = window.localStorage.getItem(cacheKey);
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+      .slice(0, 3);
+  } catch {
+    return [];
+  }
 }
 
 function getTaskChatSnapshot(storageKey: string): PersistedTaskChatState {
