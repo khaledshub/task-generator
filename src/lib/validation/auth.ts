@@ -32,5 +32,24 @@ export const signupSchema = credentialsSchema
     message: "Passwords do not match.",
   });
 
+/**
+ * Validates an authenticated password change request.
+ */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required."),
+    newPassword: credentialsSchema.shape.password,
+    confirmPassword: z.string().min(1, "Confirm your new password."),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match.",
+  })
+  .refine((data) => data.currentPassword !== data.newPassword, {
+    path: ["newPassword"],
+    message: "New password must be different from your current password.",
+  });
+
 export type CredentialsInput = z.infer<typeof credentialsSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

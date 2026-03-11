@@ -154,3 +154,7 @@ Expected unless `RUN_E2E=1` is set.
 ## Documentation Map
 - Phase-by-phase notes: `/Users/khaledahmed/GitHub/task-generator/docs/PHASE_NOTES.md`
 - Detailed code map: `/Users/khaledahmed/GitHub/task-generator/docs/CODEMAP.md`
+- Figma MCP setup: `/Users/khaledahmed/GitHub/task-generator/docs/FIGMA_MCP_SETUP.md`
+- Figma integration requirements: `/Users/khaledahmed/GitHub/task-generator/docs/requirements/figma-design-integration.md`
+- Figma integration architecture: `/Users/khaledahmed/GitHub/task-generator/docs/architecture/figma-design-integration.md`
+- Figma implementation playbook: `/Users/khaledahmed/GitHub/task-generator/docs/playbooks/FIGMA_IMPLEMENTATION_PLAYBOOK.md`

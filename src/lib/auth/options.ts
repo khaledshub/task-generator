@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from "@/lib/prisma";
+import { createGuestUser, purgeExpiredGuestUsers } from "@/lib/auth/guest";
 import { verifyPassword } from "@/lib/auth/password";
 import {
   applyAuthFailureDelay,
@@ -13,6 +14,7 @@ import { credentialsSchema } from "@/lib/validation/auth";
 interface AuthUser {
   id: string;
   email: string;
+  isGuest?: boolean;
 }
 
 const LOGIN_MAX_ATTEMPTS = 15;
@@ -86,6 +88,7 @@ export const authOptions: NextAuthOptions = {
   },
   providers: [
     CredentialsProvider({
+      id: "credentials",
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
@@ -93,11 +96,29 @@ export const authOptions: NextAuthOptions = {
       },
       authorize: (credentials, request) => authorizeCredentials(credentials, request),
     }),
+    CredentialsProvider({
+      id: "guest",
+      name: "Guest",
+      credentials: {},
+      authorize: async () => createGuestUser(),
+    }),
   ],
   callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.isGuest = (user as AuthUser).isGuest === true;
+      }
+
+      if (token.isGuest === true) {
+        await purgeExpiredGuestUsers();
+      }
+
+      return token;
+    },
     session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub;
+        session.user.isGuest = token.isGuest === true;
       }
 
       return session;

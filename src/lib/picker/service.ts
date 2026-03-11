@@ -2,8 +2,10 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { Prisma } from "@prisma/client";
 import {
+  INTENT_MODE_OPTIONS,
   RECENT_DONE_LOOKBACK_DAYS,
   RECENT_PICK_LOOKBACK_COUNT,
+  INTENT_TIME_OPTIONS,
 } from "@/lib/picker/config";
 import { selectTaskForIntent } from "@/lib/picker/algorithm";
 import type {
@@ -11,6 +13,7 @@ import type {
   PickEventActionPayload,
 } from "@/lib/validation/picker";
 import { toStringArray } from "@/lib/tasks/types";
+import { TASK_CONTEXTS } from "@/lib/tasks/config";
 
 interface PickTaskServiceNoMatch {
   status: "no_match";
@@ -46,9 +49,9 @@ export async function createIntentAndPickTask(
   const createdIntent = await prisma.dailyIntent.create({
     data: {
       userId,
-      contextChoice: intent.contextChoice,
-      modeChoice: intent.modeChoice,
-      timeAvailableMinutes: intent.timeAvailableMinutes,
+      contextChoice: intent.contextChoice ?? TASK_CONTEXTS[0],
+      modeChoice: intent.modeChoice ?? INTENT_MODE_OPTIONS[1],
+      timeAvailableMinutes: intent.timeAvailableMinutes ?? INTENT_TIME_OPTIONS[1],
     },
   });
 

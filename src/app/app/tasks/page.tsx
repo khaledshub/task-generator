@@ -1,6 +1,6 @@
 import {
+  Alert,
   Box,
-  Button,
   Chip,
   Divider,
   Paper,
@@ -10,6 +10,10 @@ import {
 import prisma from "@/lib/prisma";
 import { requireSessionUserId } from "@/lib/auth/session";
 import { HomeCreateTaskSpotlight } from "@/components/tasks/home-create-task-spotlight";
+import {
+  ArchivedStatusChip,
+  TaskRowActions,
+} from "@/components/tasks/task-row-actions";
 import { PagePurposeHeader } from "@/components/ui/page-purpose-header";
 import {
   TASK_CONTEXT_LABELS,
@@ -18,10 +22,17 @@ import {
   TASK_TYPE_LABELS,
 } from "@/lib/tasks/config";
 import { toStringArray } from "@/lib/tasks/types";
-import { archiveTaskAction } from "./actions";
 
-export default async function TasksPage() {
+interface TasksPageProps {
+  searchParams: Promise<{
+    focusTask?: string;
+  }>;
+}
+
+export default async function TasksPage({ searchParams }: TasksPageProps) {
   const userId = await requireSessionUserId();
+  const { focusTask } = await searchParams;
+  const focusedTaskId = focusTask?.trim() || null;
 
   const [activeTasks, archivedTasks] = await Promise.all([
     prisma.task.findMany({
@@ -63,8 +74,9 @@ export default async function TasksPage() {
       <HomeCreateTaskSpotlight
         title="Task command center"
         description="Create a task in-place without leaving this page. Saved tasks are linked to your account and available across sessions."
-        buttonLabel="New task modal"
+        buttonLabel="Create Task"
         showEnhancements
+        showProductivityTipsButton={false}
       />
 
       <Paper sx={{ p: 3 }}>
@@ -72,6 +84,12 @@ export default async function TasksPage() {
           <Typography variant="h5" component="h2" fontWeight={700}>
             Active tasks ({activeTasks.length})
           </Typography>
+
+          {focusedTaskId ? (
+            <Alert severity="success">
+              New task is highlighted below. Open it to continue working.
+            </Alert>
+          ) : null}
 
           {activeTasks.length === 0 ? (
             <Typography color="text.secondary">
@@ -81,9 +99,26 @@ export default async function TasksPage() {
             activeTasks.map((task) => {
               const checklistCount = toStringArray(task.checklistItems).length;
               const tipsCount = toStringArray(task.tips).length;
+              const isFocusedTask = focusedTaskId === task.id;
 
               return (
-                <Box key={task.id}>
+                <Box
+                  key={task.id}
+                  id={`task-${task.id}`}
+                  sx={
+                    isFocusedTask
+                      ? {
+                          scrollMarginTop: 96,
+                          p: 1.5,
+                          borderRadius: 2,
+                          border: "2px solid",
+                          borderColor: "primary.main",
+                          background:
+                            "linear-gradient(140deg, color-mix(in srgb, var(--mui-palette-primary-main) 14%, transparent), color-mix(in srgb, var(--mui-palette-background-paper) 95%, white 5%))",
+                        }
+                      : undefined
+                  }
+                >
                   <Stack spacing={1.5}>
                     <Typography variant="h6">{task.title}</Typography>
                     {task.description ? (
@@ -93,6 +128,15 @@ export default async function TasksPage() {
                     ) : null}
 
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Chip
+                        size="small"
+                        label="Active"
+                        variant="filled"
+                        sx={{
+                          bgcolor: "success.main",
+                          color: "success.contrastText",
+                        }}
+                      />
                       <Chip
                         size="small"
                         label={`Context: ${TASK_CONTEXT_LABELS[task.context]}`}
@@ -116,6 +160,9 @@ export default async function TasksPage() {
                       {task.avoiding ? (
                         <Chip size="small" color="warning" label="Avoiding" />
                       ) : null}
+                      {isFocusedTask ? (
+                        <Chip size="small" color="primary" label="Just created" />
+                      ) : null}
                       <Chip size="small" label={`Checklist: ${checklistCount}`} />
                       <Chip size="small" label={`Tips: ${tipsCount}`} />
                     </Stack>
@@ -124,29 +171,7 @@ export default async function TasksPage() {
                       Starter step: <strong>{task.starterStep}</strong>
                     </Typography>
 
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                      <Button
-                        href={`/app/tasks/${task.id}`}
-                        variant="outlined"
-                        size="small"
-                      >
-                        View
-                      </Button>
-
-                      <Button
-                        href={`/app/tasks/${task.id}/edit`}
-                        variant="outlined"
-                        size="small"
-                      >
-                        Edit
-                      </Button>
-
-                      <form action={archiveTaskAction.bind(null, task.id)}>
-                        <Button type="submit" color="warning" size="small">
-                          Archive
-                        </Button>
-                      </form>
-                    </Stack>
+                    <TaskRowActions taskId={task.id} />
                   </Stack>
                   <Divider sx={{ my: 2 }} />
                 </Box>
@@ -163,9 +188,10 @@ export default async function TasksPage() {
             <Typography color="text.secondary">No archived tasks yet.</Typography>
           ) : (
             archivedTasks.map((task) => (
-              <Typography key={task.id} color="text.secondary">
-                {task.title}
-              </Typography>
+              <Stack key={task.id} direction="row" spacing={1} alignItems="center">
+                <ArchivedStatusChip taskId={task.id} />
+                <Typography color="text.secondary">{task.title}</Typography>
+              </Stack>
             ))
           )}
         </Stack>

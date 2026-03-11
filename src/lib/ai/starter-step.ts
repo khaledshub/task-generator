@@ -9,7 +9,7 @@ const DEFAULT_OPENAI_MODEL = "gpt-5";
 const DEFAULT_OLLAMA_MODEL = "gpt-oss:20b";
 const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434";
 const OLLAMA_DOCKER_HOST_BASE_URL = "http://host.docker.internal:11434";
-const MAX_OUTPUT_TOKENS = 140;
+const MAX_OUTPUT_TOKENS = 90;
 
 interface GenerateStarterStepResult {
   starterStep: string;
@@ -60,7 +60,7 @@ async function generateWithOpenAi(input: {
       {
         role: "system",
         content:
-          "You create practical, fast task plans. Return JSON only with keys: starterStep, todoSteps, tips.",
+          "You create practical, fast task plans. Return JSON only with keys: starterStep, todoSteps.",
       },
       {
         role: "user",
@@ -71,7 +71,11 @@ async function generateWithOpenAi(input: {
 
   const rawText = (response.output_text ?? "").trim();
   const parsed = parseAiTaskPlan(rawText);
-  const todoSteps = parsed.todoSteps;
+  const todoSteps = ensureChecklistTemplate({
+    steps: parsed.todoSteps,
+    starterStep: parsed.starterStep,
+    title: input.title,
+  });
   const tips = parsed.tips;
   const starterStep = clampStarterStep(parsed.starterStep ?? todoSteps[0] ?? rawText);
 
@@ -108,7 +112,11 @@ async function generateWithOllama(input: {
   });
   const rawText = (payload.response ?? "").trim();
   const parsed = parseAiTaskPlan(rawText);
-  const todoSteps = parsed.todoSteps;
+  const todoSteps = ensureChecklistTemplate({
+    steps: parsed.todoSteps,
+    starterStep: parsed.starterStep,
+    title: input.title,
+  });
   const tips = parsed.tips;
   const starterStep = clampStarterStep(parsed.starterStep ?? todoSteps[0] ?? rawText);
 
@@ -194,14 +202,17 @@ Generate a compact plan for this task.
 Return JSON only in this shape:
 {
   "starterStep": "string",
-  "todoSteps": ["string", "string", "string"],
-  "tips": ["string", "string", "string"]
+  "todoSteps": ["string", "string", "string"]
 }
 
 Rules:
 - starterStep: one tiny action the user can do immediately (<= 120 chars).
-- todoSteps: exactly 3 concise, sequential actions (<= 90 chars each).
-- tips: exactly 3 practical speed tips for finishing faster (<= 120 chars each).
+- todoSteps: exactly 3 checklist lines with this exact structure:
+  - "Start: <milestone that marks work kickoff>"
+  - "In Progress: <milestone that shows active execution>"
+  - "Done: <milestone that defines completion>"
+- keep each checklist line <= 90 chars.
+- Keep todoSteps focused on progress status checkpoints, not implementation advice.
 `;
 
   return promptTemplate
@@ -267,7 +278,7 @@ function parseAiTaskPlan(rawText: string): {
 
     const starterStep =
       typeof parsed.starterStep === "string" ? parsed.starterStep.trim() : undefined;
-    const todoSteps = toShortStringArray(parsed.todoSteps);
+    const todoSteps = toShortStringArray(parsed.todoSteps, 3);
     const tips = toShortStringArray(parsed.tips, 5);
 
     return {
@@ -305,6 +316,48 @@ function toShortStringArray(value: unknown, maxItems = 3): string[] {
     .map((item) => item.trim())
     .filter((item) => item.length > 0)
     .slice(0, maxItems);
+}
+
+function ensureChecklistTemplate(input: {
+  steps: string[];
+  starterStep?: string;
+  title: string;
+}): string[] {
+  const normalized = input.steps
+    .map((step) => step.trim())
+    .filter((step) => step.length > 0)
+    .slice(0, 3);
+
+  const start = extractChecklistContent(normalized[0], "Start")
+    || (input.starterStep ? input.starterStep.trim() : "")
+    || `Begin ${input.title.slice(0, 48).toLowerCase()} now.`;
+  const inProgress = extractChecklistContent(normalized[1], "In Progress")
+    || "Core execution milestone is actively underway.";
+  const done = extractChecklistContent(normalized[2], "Done")
+    || "Completion milestone is met and verified.";
+
+  return [
+    `Start: ${clampChecklistContent(start)}`,
+    `In Progress: ${clampChecklistContent(inProgress)}`,
+    `Done: ${clampChecklistContent(done)}`,
+  ];
+}
+
+function extractChecklistContent(raw: string | undefined, label: "Start" | "In Progress" | "Done"): string | null {
+  if (!raw) {
+    return null;
+  }
+
+  const match = raw.match(new RegExp(`^${label}:\\s*(.+)$`, "i"));
+  if (match?.[1]) {
+    return match[1].trim();
+  }
+
+  return raw.trim();
+}
+
+function clampChecklistContent(value: string): string {
+  return value.replace(/\s+/g, " ").trim().slice(0, 90);
 }
 
 function isNetworkError(error: unknown): boolean {

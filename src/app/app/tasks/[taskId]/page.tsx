@@ -1,9 +1,13 @@
-import { Chip, Divider, Paper, Stack, Typography, Button } from "@mui/material";
+import { Chip, CircularProgress, Divider, Paper, Stack, Typography, Button } from "@mui/material";
+import { PickAction } from "@prisma/client";
 import { notFound } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { requireSessionUserId } from "@/lib/auth/session";
 import { TASK_CONTEXT_LABELS, TASK_ENERGY_LABELS, TASK_TYPE_LABELS } from "@/lib/tasks/config";
 import { toStringArray } from "@/lib/tasks/types";
+import { Checklist } from "@/components/tasks/checklist";
+import { TaskAiPendingWatcher } from "@/components/tasks/task-ai-pending-watcher";
+import { TaskTipsAssistant } from "@/components/tasks/task-tips-assistant";
 import { TaskQuickActions } from "@/components/tasks/task-quick-actions";
 
 interface TaskDetailPageProps {
@@ -33,6 +37,10 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
         starterStep: true,
         checklistItems: true,
         tips: true,
+        generateAiStepsEnabled: true,
+        aiStepsGenerationStatus: true,
+        aiProvider: true,
+        isArchived: true,
       },
     }),
     prisma.pickEvent.findMany({
@@ -53,9 +61,18 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
 
   const checklistItems = toStringArray(task.checklistItems);
   const tips = toStringArray(task.tips);
+  const isChecklistGenerating =
+    task.generateAiStepsEnabled && task.aiStepsGenerationStatus === "PENDING";
+  const checklistItemsForTracking =
+    checklistItems.length > 0
+      ? checklistItems
+      : task.generateAiStepsEnabled
+        ? []
+        : [task.starterStep];
 
   return (
     <Stack spacing={3}>
+      <TaskAiPendingWatcher isPending={isChecklistGenerating} />
       <Paper
         sx={{
           p: 2.5,
@@ -73,6 +90,20 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
           ) : null}
 
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Chip
+              size="small"
+              color={task.isArchived ? "warning" : "success"}
+              label={task.isArchived ? "Archived" : "Active"}
+              variant="filled"
+              sx={
+                task.isArchived
+                  ? undefined
+                  : {
+                      bgcolor: "success.main",
+                      color: "success.contrastText",
+                    }
+              }
+            />
             <Chip size="small" label={`Context: ${TASK_CONTEXT_LABELS[task.context]}`} />
             <Chip size="small" label={`Type: ${TASK_TYPE_LABELS[task.type]}`} />
             <Chip size="small" label={`Energy: ${TASK_ENERGY_LABELS[task.energy]}`} />
@@ -98,32 +129,33 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
           <Divider />
 
           <Typography variant="h6">Checklist</Typography>
-          {checklistItems.length === 0 ? (
-            <Typography color="text.secondary">No checklist items.</Typography>
-          ) : (
-            <Stack component="ul" sx={{ m: 0, pl: 3 }}>
-              {checklistItems.map((item) => (
-                <Typography component="li" key={item}>
-                  {item}
-                </Typography>
-              ))}
+          {isChecklistGenerating ? (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <CircularProgress size={16} />
+              <Typography color="text.secondary">
+                Generating GenAI checklist... your checkboxes will appear shortly.
+              </Typography>
             </Stack>
+          ) : (
+            <Checklist
+              key={`task-checklist:${task.id}`}
+              items={checklistItemsForTracking}
+              emptyMessage="No checklist items."
+              storageKey={`task-checklist:${task.id}`}
+            />
           )}
 
           <Divider />
 
           <Typography variant="h6">Tips</Typography>
-          {tips.length === 0 ? (
-            <Typography color="text.secondary">No tips.</Typography>
-          ) : (
-            <Stack component="ul" sx={{ m: 0, pl: 3 }}>
-              {tips.map((tip) => (
-                <Typography component="li" key={tip}>
-                  {tip}
-                </Typography>
-              ))}
-            </Stack>
-          )}
+          <TaskTipsAssistant
+            taskId={task.id}
+            title={task.title}
+            description={task.description}
+            starterStep={task.starterStep}
+            aiProvider={task.aiProvider}
+            initialTips={tips}
+          />
         </Stack>
       </Paper>
 
@@ -146,10 +178,25 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
                 <Typography variant="body2" color="text.secondary">
                   {event.pickedAt.toLocaleString()}
                 </Typography>
-                <Typography fontWeight={600}>
-                  {event.action}
-                  {event.skippedReason ? ` (${event.skippedReason})` : ""}
-                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                  <Chip
+                    size="small"
+                    color={toEventChipColor(event.action)}
+                    label={event.action}
+                    variant="filled"
+                    sx={
+                      event.action === PickAction.PICKED
+                        ? {
+                            bgcolor: "info.main",
+                            color: "info.contrastText",
+                          }
+                        : undefined
+                    }
+                  />
+                  {event.skippedReason ? (
+                    <Chip size="small" color="warning" label={event.skippedReason} />
+                  ) : null}
+                </Stack>
                 <Typography variant="body2" color="text.secondary">
                   {event.why}
                 </Typography>
@@ -160,4 +207,20 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
       </Paper>
     </Stack>
   );
+}
+
+function toEventChipColor(action: PickAction): "info" | "primary" | "success" | "warning" {
+  if (action === PickAction.PICKED) {
+    return "info";
+  }
+
+  if (action === PickAction.STARTED) {
+    return "primary";
+  }
+
+  if (action === PickAction.DONE) {
+    return "success";
+  }
+
+  return "warning";
 }

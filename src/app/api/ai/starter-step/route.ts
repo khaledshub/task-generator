@@ -79,6 +79,7 @@ export async function POST(request: Request) {
           aiStepsGenerationStatus: "READY",
           starterStep: generated.starterStep,
           aiGeneratedSteps: generatedTodoSteps,
+          checklistItems: generatedTodoSteps,
           tips: mergedTips,
           aiGeneratedAt: new Date(),
         },
@@ -113,7 +114,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       starterStep: generated.starterStep,
-      todoSteps: generated.todoSteps,
+      todoSteps: generatedTodoSteps,
+      checklistItems: generatedTodoSteps,
       tips: mergedTips,
       usage: generated.usage,
     });

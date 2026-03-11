@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { hashPasswordResetToken } from "@/lib/auth/password-reset";
+import { logger } from "@/lib/logger";
 import {
   applyAuthFailureDelay,
   getClientIpFromHeaders,
@@ -10,6 +12,18 @@ import {
 import { resetPasswordSchema } from "@/lib/validation/password-reset";
 
 const RESET_PASSWORD_MAX_ATTEMPTS = 15;
+const RESET_PASSWORD_UNAVAILABLE_MESSAGE =
+  "Password reset is temporarily unavailable. Please try again later.";
+
+function isMissingPasswordResetTableError(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2021") {
+    return false;
+  }
+
+  const table = String((error.meta as { table?: string } | undefined)?.table ?? "");
+  const modelName = String((error.meta as { modelName?: string } | undefined)?.modelName ?? "");
+  return table.includes("PasswordResetToken") || modelName === "PasswordResetToken";
+}
 
 /**
  * Validates a reset token and updates the corresponding user password hash.
@@ -38,50 +52,59 @@ export async function POST(request: Request) {
     );
   }
 
-  const now = new Date();
-  const tokenHash = hashPasswordResetToken(parsed.data.token);
-  const resetToken = await prisma.passwordResetToken.findFirst({
-    where: {
-      tokenHash,
-      usedAt: null,
-      expiresAt: {
-        gt: now,
-      },
-    },
-    select: {
-      id: true,
-      userId: true,
-    },
-  });
-
-  if (!resetToken) {
-    await applyAuthFailureDelay();
-    return NextResponse.json(
-      { error: "Reset link is invalid or has expired." },
-      { status: 400 },
-    );
-  }
-
-  const newPasswordHash = await hashPassword(parsed.data.password);
-
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: resetToken.userId },
-      data: { passwordHash: newPasswordHash },
-    }),
-    prisma.passwordResetToken.update({
-      where: { id: resetToken.id },
-      data: { usedAt: now },
-    }),
-    prisma.passwordResetToken.updateMany({
+  try {
+    const now = new Date();
+    const tokenHash = hashPasswordResetToken(parsed.data.token);
+    const resetToken = await prisma.passwordResetToken.findFirst({
       where: {
-        userId: resetToken.userId,
+        tokenHash,
         usedAt: null,
-        id: { not: resetToken.id },
+        expiresAt: {
+          gt: now,
+        },
       },
-      data: { usedAt: now },
-    }),
-  ]);
+      select: {
+        id: true,
+        userId: true,
+      },
+    });
+
+    if (!resetToken) {
+      await applyAuthFailureDelay();
+      return NextResponse.json(
+        { error: "Reset link is invalid or has expired." },
+        { status: 400 },
+      );
+    }
+
+    const newPasswordHash = await hashPassword(parsed.data.password);
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash: newPasswordHash },
+      }),
+      prisma.passwordResetToken.update({
+        where: { id: resetToken.id },
+        data: { usedAt: now },
+      }),
+      prisma.passwordResetToken.updateMany({
+        where: {
+          userId: resetToken.userId,
+          usedAt: null,
+          id: { not: resetToken.id },
+        },
+        data: { usedAt: now },
+      }),
+    ]);
+  } catch (error) {
+    if (!isMissingPasswordResetTableError(error)) {
+      throw error;
+    }
+
+    logger.error({ error }, "Password reset table is missing");
+    return NextResponse.json({ error: RESET_PASSWORD_UNAVAILABLE_MESSAGE }, { status: 503 });
+  }
 
   return NextResponse.json({ message: "Password updated." }, { status: 200 });
 }

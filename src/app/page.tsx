@@ -1,15 +1,15 @@
 import {
   Alert,
-  AppBar,
   Box,
   Button,
   Chip,
   Container,
   Paper,
   Stack,
-  Toolbar,
   Typography,
 } from "@mui/material";
+import { JoinAsGuestSection } from "@/components/auth/join-as-guest-section";
+import { PublicHeader } from "@/components/navigation/public-header";
 import prisma from "@/lib/prisma";
 
 const BOOTSTRAP_PROBE_KEY = "phase1-connectivity";
@@ -33,14 +33,7 @@ export default async function HomePage() {
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
-      <AppBar position="static" color="inherit" elevation={0}>
-        <Toolbar>
-          <Typography variant="h6" fontWeight={700} sx={{ flexGrow: 1 }}>
-            TodoList RandomGenerator
-          </Typography>
-          <Chip label="Phase 1" color="primary" size="small" />
-        </Toolbar>
-      </AppBar>
+      <PublicHeader />
 
       <Container maxWidth="md" sx={{ py: 6 }}>
         <Stack spacing={3}>
@@ -60,6 +53,7 @@ export default async function HomePage() {
                 Postgres wiring with credentials authentication for the
                 TodoList RandomGenerator app.
               </Typography>
+              <Chip label="Phase 1" color="primary" size="small" />
 
               {probe ? (
                 <Alert severity="success">
@@ -80,6 +74,7 @@ export default async function HomePage() {
                 <Button href="/login" variant="outlined">
                   Log in
                 </Button>
+                <JoinAsGuestSection />
                 <Button href="/" variant="text">
                   Refresh status
                 </Button>

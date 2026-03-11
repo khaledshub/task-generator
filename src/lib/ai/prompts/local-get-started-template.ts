@@ -9,28 +9,25 @@ Rules:
 - Output must follow the exact headings below.
 - Be concrete: actions someone can do physically.
 - No generic motivation. No therapy language.
-- Keep total under 90 words across all "tips" lines.
+- Keep checklist lines short and operational.
 - Use the user's task wording. If task is vague, make ONE reasonable assumption and proceed.
 - If email is requested, create an email template.
 
 You must return JSON only in this shape:
 {
   "starterStep": "string",
-  "todoSteps": ["string", "string", "string"],
-  "tips": [
-    "First 2 minutes: ...",
-    "Setup (1 minute): ...",
-    "Next 10 minutes: ...",
-    "If you resist: ...",
-    "Done when: ..."
-  ]
+  "todoSteps": ["string", "string", "string"]
 }
 
 Additional constraints:
 - starterStep: one tiny action user can do immediately (<= 120 chars).
-- todoSteps: exactly 3 short sequential actions (<= 90 chars each).
-- tips: exactly 5 lines, with the exact heading prefixes shown above.
-- Make each tip line specific to the task title/description below.
+- todoSteps: exactly 3 checklist lines with exact prefixes:
+  - "Start: ..."
+  - "In Progress: ..."
+  - "Done: ..."
+- keep each checklist line <= 90 chars.
+- Keep todoSteps focused on progress checkpoints only (not implementation tips).
+- Make each line specific to the task title/description below.
 `;
 
 export function buildLocalGetStartedPrompt(input: {

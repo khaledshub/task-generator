@@ -45,7 +45,6 @@ export const taskInputSchema = z.object({
   starterStep: z
     .string()
     .trim()
-    .min(1, "Starter step is required.")
     .max(TASK_STARTER_STEP_MAX_LENGTH, "Starter step is too long."),
   checklistItems: z
     .array(z.string().max(TASK_LIST_ITEM_MAX_LENGTH, "Checklist item too long."))
@@ -81,7 +80,12 @@ export function taskFormDataToInput(formData: FormData): TaskInput {
     tips: parseMultilineText(String(formData.get("tips") ?? "")),
   };
 
-  return taskInputSchema.parse(rawInput);
+  const parsed = taskInputSchema.parse(rawInput);
+
+  return {
+    ...parsed,
+    starterStep: resolveStarterStep(parsed.title, parsed.starterStep),
+  };
 }
 
 /**
@@ -100,4 +104,18 @@ export function parseMultilineText(value: string): string[] {
 export function normalizeOptionalText(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/**
+ * Returns a stable starter step fallback when the create flow omits manual entry.
+ */
+function resolveStarterStep(title: string, starterStep: string): string {
+  const trimmedStarterStep = starterStep.trim();
+  if (trimmedStarterStep.length > 0) {
+    return trimmedStarterStep;
+  }
+
+  const trimmedTitle = title.trim();
+  const fallback = `Open "${trimmedTitle}" and do the first tiny action.`;
+  return fallback.slice(0, TASK_STARTER_STEP_MAX_LENGTH);
 }

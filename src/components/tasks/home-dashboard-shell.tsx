@@ -25,6 +25,7 @@ import {
   Typography,
 } from "@mui/material";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { HomeCreateTaskSpotlight } from "@/components/tasks/home-create-task-spotlight";
 import { AnimatedSection } from "@/components/ui/animated-section";
@@ -63,27 +64,72 @@ function SaveStatusBanner({
   status: TaskFormState;
   onDismiss: () => void;
 }) {
+  const router = useRouter();
+
   if (status.statusState === "idle") {
     return null;
   }
+
+  const canOpenTask = status.statusState === "success" && Boolean(status.createdTaskId);
+  const taskHref = canOpenTask ? `/app/tasks/${status.createdTaskId}` : null;
 
   return (
     <Stack spacing={1}>
       <Alert
         severity={status.statusState === "success" ? "success" : "error"}
+        role={canOpenTask ? "button" : undefined}
+        tabIndex={canOpenTask ? 0 : -1}
+        onClick={
+          canOpenTask && taskHref
+            ? () => {
+                router.push(taskHref);
+              }
+            : undefined
+        }
+        onKeyDown={
+          canOpenTask && taskHref
+            ? (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  router.push(taskHref);
+                }
+              }
+            : undefined
+        }
+        sx={canOpenTask ? { cursor: "pointer" } : undefined}
         action={
-          <IconButton
-            aria-label="Close status banner"
-            color="inherit"
-            size="small"
-            onClick={onDismiss}
-          >
-            <CloseIcon fontSize="inherit" />
-          </IconButton>
+          <Stack direction="row" spacing={0.75} alignItems="center">
+            <IconButton
+              aria-label="Close status banner"
+              color="inherit"
+              size="small"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDismiss();
+              }}
+            >
+              <CloseIcon fontSize="inherit" />
+            </IconButton>
+          </Stack>
         }
       >
-        {status.message ??
-          (status.statusState === "success" ? "Task created." : "Could not save task.")}
+        <Typography component="span">
+          {status.message ??
+            (status.statusState === "success"
+              ? "Task created."
+              : "Could not save task.")}
+          {canOpenTask ? (
+            <>
+              {" "}
+              <Typography
+                component="span"
+                sx={{ textDecoration: "underline", fontWeight: 700 }}
+              >
+                Go to task
+              </Typography>
+            </>
+          ) : null}
+        </Typography>
       </Alert>
       {status.aiStatus && status.aiMessage ? (
         <Alert severity={status.aiStatus}>{status.aiMessage}</Alert>
@@ -98,14 +144,14 @@ export function HomeDashboardShell({
   eventsCount,
 }: HomeDashboardShellProps) {
   const [status, setStatus] = useState<TaskFormState>({ statusState: "idle" });
-  const [pickContextChoice, setPickContextChoice] = useState<(typeof TASK_CONTEXTS)[number]>(
-    TASK_CONTEXTS[0],
+  const [pickContextFilter, setPickContextFilter] = useState<(typeof TASK_CONTEXTS)[number] | "">(
+    "",
   );
-  const [pickModeChoice, setPickModeChoice] = useState<(typeof INTENT_MODE_OPTIONS)[number]>(
-    INTENT_MODE_OPTIONS[1],
+  const [pickModeChoice, setPickModeChoice] = useState<(typeof INTENT_MODE_OPTIONS)[number] | "">(
+    "",
   );
-  const [pickTimeChoice, setPickTimeChoice] = useState<(typeof INTENT_TIME_OPTIONS)[number]>(
-    INTENT_TIME_OPTIONS[1],
+  const [pickTimeChoice, setPickTimeChoice] = useState<(typeof INTENT_TIME_OPTIONS)[number] | "">(
+    "",
   );
   const [isPickDialogOpen, setIsPickDialogOpen] = useState(false);
   const [isPickingTask, setIsPickingTask] = useState(false);
@@ -125,9 +171,9 @@ export function HomeDashboardShell({
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        contextChoice: pickContextChoice,
-        modeChoice: pickModeChoice,
-        timeAvailableMinutes: pickTimeChoice,
+        ...(pickContextFilter ? { contextChoice: pickContextFilter } : {}),
+        ...(pickModeChoice ? { modeChoice: pickModeChoice } : {}),
+        ...(pickTimeChoice !== "" ? { timeAvailableMinutes: pickTimeChoice } : {}),
       }),
     });
 
@@ -220,15 +266,19 @@ export function HomeDashboardShell({
 
               <Stack direction="row" spacing={1.25} sx={{ pt: 1.5 }}>
                 <FormControl fullWidth size="small">
-                  <InputLabel id="home-pick-context-label" sx={{ color: "rgba(255,255,255,0.82)" }}>
+                  <InputLabel
+                    id="home-pick-context-label"
+                    shrink={pickContextFilter !== ""}
+                    sx={{ color: "rgba(255,255,255,0.82)" }}
+                  >
                     Context
                   </InputLabel>
                   <Select
                     labelId="home-pick-context-label"
                     label="Context"
-                    value={pickContextChoice}
+                    value={pickContextFilter}
                     onChange={(event) =>
-                      setPickContextChoice(event.target.value as (typeof TASK_CONTEXTS)[number])
+                      setPickContextFilter(event.target.value as (typeof TASK_CONTEXTS)[number] | "")
                     }
                     sx={{
                       color: "common.white",
@@ -247,7 +297,11 @@ export function HomeDashboardShell({
                 </FormControl>
 
                 <FormControl fullWidth size="small">
-                  <InputLabel id="home-pick-mode-label" sx={{ color: "rgba(255,255,255,0.82)" }}>
+                  <InputLabel
+                    id="home-pick-mode-label"
+                    shrink={pickModeChoice !== ""}
+                    sx={{ color: "rgba(255,255,255,0.82)" }}
+                  >
                     Mode
                   </InputLabel>
                   <Select
@@ -255,7 +309,7 @@ export function HomeDashboardShell({
                     label="Mode"
                     value={pickModeChoice}
                     onChange={(event) =>
-                      setPickModeChoice(event.target.value as (typeof INTENT_MODE_OPTIONS)[number])
+                      setPickModeChoice(event.target.value as (typeof INTENT_MODE_OPTIONS)[number] | "")
                     }
                     sx={{
                       color: "common.white",
@@ -274,7 +328,11 @@ export function HomeDashboardShell({
                 </FormControl>
 
                 <FormControl fullWidth size="small">
-                  <InputLabel id="home-pick-time-label" sx={{ color: "rgba(255,255,255,0.82)" }}>
+                  <InputLabel
+                    id="home-pick-time-label"
+                    shrink={pickTimeChoice !== ""}
+                    sx={{ color: "rgba(255,255,255,0.82)" }}
+                  >
                     Time
                   </InputLabel>
                   <Select
@@ -283,7 +341,9 @@ export function HomeDashboardShell({
                     value={pickTimeChoice}
                     onChange={(event) =>
                       setPickTimeChoice(
-                        Number(event.target.value) as (typeof INTENT_TIME_OPTIONS)[number],
+                        event.target.value
+                          ? (Number(event.target.value) as (typeof INTENT_TIME_OPTIONS)[number])
+                          : "",
                       )
                     }
                     sx={{

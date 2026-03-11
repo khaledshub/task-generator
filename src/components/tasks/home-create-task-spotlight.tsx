@@ -12,7 +12,7 @@ import {
   Typography,
 } from "@mui/material";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { TaskForm } from "@/components/tasks/task-form";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { AppDrawer } from "@/components/ui/app-drawer";
@@ -29,6 +29,7 @@ interface HomeCreateTaskSpotlightProps {
   description?: string;
   buttonLabel?: string;
   showEnhancements?: boolean;
+  showProductivityTipsButton?: boolean;
 }
 
 export function HomeCreateTaskSpotlight({
@@ -38,19 +39,116 @@ export function HomeCreateTaskSpotlight({
   description = "Add a task directly from home. Your task is saved to your account and linked to your user ID so it is available every time you log back in.",
   buttonLabel = "Create task",
   showEnhancements = false,
+  showProductivityTipsButton = true,
 }: HomeCreateTaskSpotlightProps) {
   const [open, setOpen] = useState(false);
   const [isInfoDrawerOpen, setIsInfoDrawerOpen] = useState(false);
   const [localStatus, setLocalStatus] = useState<TaskFormState>({ statusState: "idle" });
 
-  function handleStateChange(nextState: TaskFormState) {
-    setLocalStatus(nextState);
-    onStatusChange?.(nextState);
+  const handleStateChange = useCallback(
+    (nextState: TaskFormState) => {
+      setLocalStatus((current) => {
+        if (
+          current.statusState === nextState.statusState &&
+          current.message === nextState.message &&
+          current.aiStatus === nextState.aiStatus &&
+          current.aiMessage === nextState.aiMessage &&
+          current.createdTaskId === nextState.createdTaskId
+        ) {
+          return current;
+        }
 
-    if (nextState.statusState === "success") {
-      setOpen(false);
+        return nextState;
+      });
+      onStatusChange?.(nextState);
+
+      if (nextState.statusState === "success") {
+        setOpen(false);
+      }
+    },
+    [onStatusChange],
+  );
+
+  useEffect(() => {
+    if (
+      localStatus.statusState !== "success" ||
+      localStatus.aiStatus !== "info" ||
+      !localStatus.createdTaskId
+    ) {
+      return;
     }
-  }
+
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const pollAiStatus = async () => {
+      try {
+        const response = await fetch(
+          `/api/tasks/${localStatus.createdTaskId}/ai-status`,
+          { cache: "no-store" },
+        );
+        const data = (await response.json().catch(() => ({}))) as {
+          aiStepsGenerationStatus?: "PENDING" | "READY" | "FAILED" | "SKIPPED";
+        };
+
+        if (
+          response.ok &&
+          data.aiStepsGenerationStatus &&
+          data.aiStepsGenerationStatus !== "PENDING"
+        ) {
+          if (stopped) {
+            return;
+          }
+
+          const nextClearedState: TaskFormState = {
+            statusState: localStatus.statusState,
+            message: localStatus.message,
+            createdTaskId: localStatus.createdTaskId,
+            aiStatus: undefined,
+            aiMessage: undefined,
+          };
+
+          setLocalStatus((current) => {
+            if (
+              current.createdTaskId !== localStatus.createdTaskId ||
+              current.aiStatus !== "info"
+            ) {
+              return current;
+            }
+
+            return {
+              ...current,
+              aiStatus: undefined,
+              aiMessage: undefined,
+            };
+          });
+          onStatusChange?.(nextClearedState);
+          return;
+        }
+      } catch {
+        // Keep polling when transient network errors happen.
+      }
+
+      if (!stopped) {
+        timer = setTimeout(pollAiStatus, 1800);
+      }
+    };
+
+    timer = setTimeout(pollAiStatus, 1800);
+
+    return () => {
+      stopped = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [
+    localStatus.aiStatus,
+    localStatus.message,
+    localStatus.createdTaskId,
+    localStatus.statusState,
+    onStatusChange,
+  ]);
 
   return (
     <>
@@ -139,7 +237,7 @@ export function HomeCreateTaskSpotlight({
               {buttonLabel}
             </Button>
           </motion.div>
-          {showEnhancements ? (
+          {showEnhancements && showProductivityTipsButton ? (
             <Button variant="outlined" onClick={() => setIsInfoDrawerOpen(true)}>
               Productivity tips
             </Button>
@@ -187,6 +285,7 @@ export function HomeCreateTaskSpotlight({
           initialValues={DEFAULT_TASK_FORM_VALUES}
           submitLabel="Create task"
           onStateChange={handleStateChange}
+          mode="create"
         />
       </AppDialog>
 
