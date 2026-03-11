@@ -12,7 +12,7 @@ import {
   Typography,
 } from "@mui/material";
 import { motion } from "framer-motion";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { TaskForm } from "@/components/tasks/task-form";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { AppDrawer } from "@/components/ui/app-drawer";
@@ -68,6 +68,87 @@ export function HomeCreateTaskSpotlight({
     },
     [onStatusChange],
   );
+
+  useEffect(() => {
+    if (
+      localStatus.statusState !== "success" ||
+      localStatus.aiStatus !== "info" ||
+      !localStatus.createdTaskId
+    ) {
+      return;
+    }
+
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const pollAiStatus = async () => {
+      try {
+        const response = await fetch(
+          `/api/tasks/${localStatus.createdTaskId}/ai-status`,
+          { cache: "no-store" },
+        );
+        const data = (await response.json().catch(() => ({}))) as {
+          aiStepsGenerationStatus?: "PENDING" | "READY" | "FAILED" | "SKIPPED";
+        };
+
+        if (
+          response.ok &&
+          data.aiStepsGenerationStatus &&
+          data.aiStepsGenerationStatus !== "PENDING"
+        ) {
+          if (stopped) {
+            return;
+          }
+
+          const nextClearedState: TaskFormState = {
+            statusState: localStatus.statusState,
+            message: localStatus.message,
+            createdTaskId: localStatus.createdTaskId,
+            aiStatus: undefined,
+            aiMessage: undefined,
+          };
+
+          setLocalStatus((current) => {
+            if (
+              current.createdTaskId !== localStatus.createdTaskId ||
+              current.aiStatus !== "info"
+            ) {
+              return current;
+            }
+
+            return {
+              ...current,
+              aiStatus: undefined,
+              aiMessage: undefined,
+            };
+          });
+          onStatusChange?.(nextClearedState);
+          return;
+        }
+      } catch {
+        // Keep polling when transient network errors happen.
+      }
+
+      if (!stopped) {
+        timer = setTimeout(pollAiStatus, 1800);
+      }
+    };
+
+    timer = setTimeout(pollAiStatus, 1800);
+
+    return () => {
+      stopped = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [
+    localStatus.aiStatus,
+    localStatus.message,
+    localStatus.createdTaskId,
+    localStatus.statusState,
+    onStatusChange,
+  ]);
 
   return (
     <>

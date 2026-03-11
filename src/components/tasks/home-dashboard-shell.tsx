@@ -25,6 +25,7 @@ import {
   Typography,
 } from "@mui/material";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { HomeCreateTaskSpotlight } from "@/components/tasks/home-create-task-spotlight";
 import { AnimatedSection } from "@/components/ui/animated-section";
@@ -63,36 +64,49 @@ function SaveStatusBanner({
   status: TaskFormState;
   onDismiss: () => void;
 }) {
+  const router = useRouter();
+
   if (status.statusState === "idle") {
     return null;
   }
+
+  const canOpenTask = status.statusState === "success" && Boolean(status.createdTaskId);
+  const taskHref = canOpenTask ? `/app/tasks/${status.createdTaskId}` : null;
 
   return (
     <Stack spacing={1}>
       <Alert
         severity={status.statusState === "success" ? "success" : "error"}
+        role={canOpenTask ? "button" : undefined}
+        tabIndex={canOpenTask ? 0 : -1}
+        onClick={
+          canOpenTask && taskHref
+            ? () => {
+                router.push(taskHref);
+              }
+            : undefined
+        }
+        onKeyDown={
+          canOpenTask && taskHref
+            ? (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  router.push(taskHref);
+                }
+              }
+            : undefined
+        }
+        sx={canOpenTask ? { cursor: "pointer" } : undefined}
         action={
           <Stack direction="row" spacing={0.75} alignItems="center">
-            {status.statusState === "success" && status.createdTaskId ? (
-              <Button
-                variant="contained"
-                size="small"
-                href={`/app/tasks/${status.createdTaskId}`}
-                sx={{
-                  fontWeight: 700,
-                  bgcolor: "common.white",
-                  color: "success.dark",
-                  "&:hover": { bgcolor: "grey.100" },
-                }}
-              >
-                Go to task
-              </Button>
-            ) : null}
             <IconButton
               aria-label="Close status banner"
               color="inherit"
               size="small"
-              onClick={onDismiss}
+              onClick={(event) => {
+                event.stopPropagation();
+                onDismiss();
+              }}
             >
               <CloseIcon fontSize="inherit" />
             </IconButton>
@@ -104,6 +118,17 @@ function SaveStatusBanner({
             (status.statusState === "success"
               ? "Task created."
               : "Could not save task.")}
+          {canOpenTask ? (
+            <>
+              {" "}
+              <Typography
+                component="span"
+                sx={{ textDecoration: "underline", fontWeight: 700 }}
+              >
+                Go to task
+              </Typography>
+            </>
+          ) : null}
         </Typography>
       </Alert>
       {status.aiStatus && status.aiMessage ? (
