@@ -9,18 +9,16 @@ import {
 } from "@mui/material";
 import prisma from "@/lib/prisma";
 import { requireSessionUserId } from "@/lib/auth/session";
-import { TaskForm } from "@/components/tasks/task-form";
+import { HomeCreateTaskSpotlight } from "@/components/tasks/home-create-task-spotlight";
+import { PagePurposeHeader } from "@/components/ui/page-purpose-header";
 import {
   TASK_CONTEXT_LABELS,
   TASK_ENERGY_LABELS,
   TASK_FREQUENCY_LABELS,
   TASK_TYPE_LABELS,
 } from "@/lib/tasks/config";
-import {
-  DEFAULT_TASK_FORM_VALUES,
-  toStringArray,
-} from "@/lib/tasks/types";
-import { archiveTaskAction, createTaskAction } from "./actions";
+import { toStringArray } from "@/lib/tasks/types";
+import { archiveTaskAction } from "./actions";
 
 export default async function TasksPage() {
   const userId = await requireSessionUserId();
@@ -29,40 +27,45 @@ export default async function TasksPage() {
     prisma.task.findMany({
       where: { userId, isArchived: false },
       orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        context: true,
+        energy: true,
+        type: true,
+        frequency: true,
+        timeEstimateMinutes: true,
+        avoiding: true,
+        starterStep: true,
+        checklistItems: true,
+        tips: true,
+      },
     }),
     prisma.task.findMany({
       where: { userId, isArchived: true },
       orderBy: { updatedAt: "desc" },
       take: 10,
+      select: {
+        id: true,
+        title: true,
+      },
     }),
   ]);
 
   return (
     <Stack spacing={3}>
-      <Paper sx={{ p: 3 }}>
-        <Stack spacing={2}>
-          <Typography variant="h4" component="h1" fontWeight={700}>
-            Tasks
-          </Typography>
-          <Typography color="text.secondary">
-            Create tasks with context tags so the picker can choose from the
-            right bucket later.
-          </Typography>
-        </Stack>
-      </Paper>
+      <PagePurposeHeader
+        title="Tasks"
+        subtitle="Build your task pool so the picker can select the best next action for your context."
+      />
 
-      <Paper sx={{ p: 3 }}>
-        <Stack spacing={2}>
-          <Typography variant="h5" component="h2" fontWeight={700}>
-            Create task
-          </Typography>
-          <TaskForm
-            action={createTaskAction}
-            initialValues={DEFAULT_TASK_FORM_VALUES}
-            submitLabel="Create task"
-          />
-        </Stack>
-      </Paper>
+      <HomeCreateTaskSpotlight
+        title="Task command center"
+        description="Create a task in-place without leaving this page. Saved tasks are linked to your account and available across sessions."
+        buttonLabel="New task modal"
+        showEnhancements
+      />
 
       <Paper sx={{ p: 3 }}>
         <Stack spacing={2}>
@@ -124,7 +127,7 @@ export default async function TasksPage() {
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                       <Button
                         href={`/app/tasks/${task.id}`}
-                        variant="text"
+                        variant="outlined"
                         size="small"
                       >
                         View

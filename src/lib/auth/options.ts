@@ -2,6 +2,12 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import prisma from "@/lib/prisma";
 import { verifyPassword } from "@/lib/auth/password";
+import {
+  applyAuthFailureDelay,
+  clearRateLimit,
+  getClientIpFromHeaders,
+  takeRateLimit,
+} from "@/lib/auth/rate-limit";
 import { credentialsSchema } from "@/lib/validation/auth";
 
 interface AuthUser {
@@ -9,15 +15,29 @@ interface AuthUser {
   email: string;
 }
 
+const LOGIN_MAX_ATTEMPTS = 15;
+
 /**
  * Validates submitted credentials and returns the authenticated user payload.
  */
 async function authorizeCredentials(
   rawCredentials: unknown,
+  request: { headers?: Headers | Record<string, string | string[] | undefined> } | undefined,
 ): Promise<AuthUser | null> {
   const parsed = credentialsSchema.safeParse(rawCredentials);
+  const normalizedEmail =
+    parsed.success && parsed.data.email ? parsed.data.email : String((rawCredentials as { email?: string } | null)?.email ?? "").toLowerCase().trim();
+  const headers = request?.headers ?? {};
+  const rateLimitKey = `login:${getClientIpFromHeaders(headers)}:${normalizedEmail}`;
+  const rateLimit = takeRateLimit(rateLimitKey, LOGIN_MAX_ATTEMPTS);
+
+  if (!rateLimit.allowed) {
+    await applyAuthFailureDelay();
+    return null;
+  }
 
   if (!parsed.success) {
+    await applyAuthFailureDelay();
     return null;
   }
 
@@ -28,6 +48,7 @@ async function authorizeCredentials(
   });
 
   if (!user) {
+    await applyAuthFailureDelay();
     return null;
   }
 
@@ -37,8 +58,11 @@ async function authorizeCredentials(
   );
 
   if (!passwordMatches) {
+    await applyAuthFailureDelay();
     return null;
   }
+
+  clearRateLimit(rateLimitKey);
 
   return {
     id: user.id,
@@ -55,6 +79,10 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
+    maxAge: 60 * 60 * 24 * 7,
+  },
+  jwt: {
+    maxAge: 60 * 60 * 24 * 7,
   },
   providers: [
     CredentialsProvider({
@@ -63,7 +91,7 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      authorize: authorizeCredentials,
+      authorize: (credentials, request) => authorizeCredentials(credentials, request),
     }),
   ],
   callbacks: {

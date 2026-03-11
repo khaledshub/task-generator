@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   TASK_CONTEXTS,
+  TASK_AI_PROVIDERS,
   TASK_DESCRIPTION_MAX_LENGTH,
   TASK_ENERGIES,
   TASK_FREQUENCIES,
@@ -39,6 +40,8 @@ export const taskInputSchema = z.object({
     .positive("Time estimate must be greater than zero.")
     .max(TASK_MAX_TIME_MINUTES, "Time estimate is too large."),
   avoiding: z.boolean(),
+  generateAiStepsEnabled: z.boolean(),
+  aiProvider: z.enum(TASK_AI_PROVIDERS),
   starterStep: z
     .string()
     .trim()
@@ -69,6 +72,8 @@ export function taskFormDataToInput(formData: FormData): TaskInput {
       formData.get("timeEstimateMinutes") ?? TASK_TIME_OPTIONS[3],
     ),
     avoiding: formData.get("avoiding") === "on",
+    generateAiStepsEnabled: formData.get("generateAiStepsEnabled") === "on",
+    aiProvider: String(formData.get("aiProvider") ?? TASK_AI_PROVIDERS[0]),
     starterStep: String(formData.get("starterStep") ?? ""),
     checklistItems: parseMultilineText(
       String(formData.get("checklistItems") ?? ""),

@@ -56,6 +56,18 @@ enum SkippedReason {
   OTHER
 }
 
+enum AiStepsGenerationStatus {
+  PENDING
+  READY
+  FAILED
+  SKIPPED
+}
+
+enum AiProvider {
+  OPENAI
+  LOCAL
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -63,6 +75,8 @@ model User {
   tasks        Task[]
   intents      DailyIntent[]
   pickEvents   PickEvent[]
+  aiStarterStepRequests AiStarterStepRequest[]
+  passwordResetTokens PasswordResetToken[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -90,6 +104,12 @@ model Task {
   starterStep         String
   checklistItems      Json
   tips                Json
+  generateAiStepsEnabled Boolean @default(false)
+  aiProvider          AiProvider @default(OPENAI)
+  aiStepsGenerationStatus AiStepsGenerationStatus @default(SKIPPED)
+  aiGeneratedSteps    Json?
+  aiGeneratedAt       DateTime?
+  aiStarterStepRequests AiStarterStepRequest[]
   isArchived          Boolean       @default(false)
   pickEvents          PickEvent[]
   createdAt           DateTime      @default(now())
@@ -129,4 +149,33 @@ model PickEvent {
   @@index([userId, pickedAt])
   @@index([taskId, pickedAt])
   @@index([intentId])
+}
+
+model AiStarterStepRequest {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId          String
+  task            Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  titleSnapshot   String
+  generatedStep   String
+  promptTokens    Int?
+  completionTokens Int?
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, taskId])
+  @@index([userId, createdAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
 }

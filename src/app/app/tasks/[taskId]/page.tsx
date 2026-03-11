@@ -22,6 +22,18 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
         id: taskId,
         userId,
       },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        context: true,
+        type: true,
+        energy: true,
+        timeEstimateMinutes: true,
+        starterStep: true,
+        checklistItems: true,
+        tips: true,
+      },
     }),
     prisma.pickEvent.findMany({
       where: {
@@ -44,9 +56,15 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
 
   return (
     <Stack spacing={3}>
-      <Paper sx={{ p: 3 }}>
-        <Stack spacing={1.5}>
-          <Typography variant="h4" component="h1" fontWeight={700}>
+      <Paper
+        sx={{
+          p: 2.5,
+          background:
+            "linear-gradient(130deg, color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent), color-mix(in srgb, var(--mui-palette-background-paper) 92%, white 8%))",
+        }}
+      >
+        <Stack spacing={1.5} alignItems="center" textAlign="center">
+          <Typography variant="h5" component="h1" fontWeight={700} textAlign="center">
             {task.title}
           </Typography>
 

@@ -14,6 +14,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
   INTENT_CONTEXT_OPTIONS,
@@ -39,6 +40,7 @@ interface PickResponse {
     title: string;
     description: string | null;
     starterStep: string;
+    aiGeneratedSteps: string[];
     checklistItems: string[];
     tips: string[];
   };
@@ -48,15 +50,66 @@ interface ActionResponse {
   id: string;
 }
 
-export function PickTaskPanel() {
+interface PickTaskPanelProps {
+  initialIntent?: {
+    contextChoice: (typeof INTENT_CONTEXT_OPTIONS)[number];
+    modeChoice: (typeof INTENT_MODE_OPTIONS)[number];
+    timeChoice: (typeof INTENT_TIME_OPTIONS)[number];
+  };
+}
+
+function toIntentContextFromQuery(
+  value: string | null,
+): (typeof INTENT_CONTEXT_OPTIONS)[number] | null {
+  if (!value) {
+    return null;
+  }
+
+  return INTENT_CONTEXT_OPTIONS.includes(value as (typeof INTENT_CONTEXT_OPTIONS)[number])
+    ? (value as (typeof INTENT_CONTEXT_OPTIONS)[number])
+    : null;
+}
+
+function toIntentModeFromQuery(
+  value: string | null,
+): (typeof INTENT_MODE_OPTIONS)[number] | null {
+  if (!value) {
+    return null;
+  }
+
+  return INTENT_MODE_OPTIONS.includes(value as (typeof INTENT_MODE_OPTIONS)[number])
+    ? (value as (typeof INTENT_MODE_OPTIONS)[number])
+    : null;
+}
+
+function toIntentTimeFromQuery(
+  value: string | null,
+): (typeof INTENT_TIME_OPTIONS)[number] | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  return INTENT_TIME_OPTIONS.includes(parsed as (typeof INTENT_TIME_OPTIONS)[number])
+    ? (parsed as (typeof INTENT_TIME_OPTIONS)[number])
+    : null;
+}
+
+export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
+  const searchParams = useSearchParams();
+  const queryContext = toIntentContextFromQuery(searchParams.get("context"));
+  const queryMode = toIntentModeFromQuery(searchParams.get("mode"));
+  const queryTime = toIntentTimeFromQuery(searchParams.get("time"));
+
   const [contextChoice, setContextChoice] = useState<(typeof INTENT_CONTEXT_OPTIONS)[number]>(
-    INTENT_CONTEXT_OPTIONS[0],
+    queryContext ?? initialIntent?.contextChoice ?? INTENT_CONTEXT_OPTIONS[0],
   );
   const [modeChoice, setModeChoice] = useState<(typeof INTENT_MODE_OPTIONS)[number]>(
-    INTENT_MODE_OPTIONS[1],
+    queryMode ?? initialIntent?.modeChoice ?? INTENT_MODE_OPTIONS[1],
   );
   const [timeChoice, setTimeChoice] = useState<(typeof INTENT_TIME_OPTIONS)[number]>(
-    INTENT_TIME_OPTIONS[1],
+    queryTime ?? initialIntent?.timeChoice ?? INTENT_TIME_OPTIONS[1],
   );
   const [skippedReason, setSkippedReason] = useState<SkippedReasonValue>(
     SKIPPED_REASON_OPTIONS[0],
@@ -253,6 +306,25 @@ export function PickTaskPanel() {
                 2-minute starter step
               </Typography>
               <Typography>{pickResult.task.starterStep}</Typography>
+            </Box>
+
+            <Box>
+              <Typography variant="subtitle1" fontWeight={600}>
+                AI todo steps
+              </Typography>
+              {pickResult.task.aiGeneratedSteps.length === 0 ? (
+                <Typography color="text.secondary">
+                  No AI-generated steps for this task.
+                </Typography>
+              ) : (
+                <Stack component="ul" sx={{ pl: 3, m: 0 }}>
+                  {pickResult.task.aiGeneratedSteps.map((step) => (
+                    <Typography key={step} component="li">
+                      {step}
+                    </Typography>
+                  ))}
+                </Stack>
+              )}
             </Box>
 
             <Box>

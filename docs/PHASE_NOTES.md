@@ -267,3 +267,68 @@
 ### Where to change behavior
 - Project setup/deploy/testing docs: `README.md`
 - Environment variable template: `.env.example`
+
+## UX Refresh Phase 1 - UX audit + shared modal/snackbar infrastructure
+
+### What was built
+- Audited existing task UX flows in code:
+  - Create task is currently in-place on `/app/tasks` (inline form, no navigation).
+  - Edit task currently navigates to `/app/tasks/[taskId]/edit`.
+- Added shared global snackbar infrastructure:
+  - `AppSnackbarProvider` with enqueue-style API.
+- Added reusable accessible modal primitives:
+  - `AppDialog` (MUI `Dialog` wrapper)
+  - `AppDrawer` (MUI `Drawer` wrapper configured as dialog)
+- Wired providers globally through `AppProviders`.
+- Added low-risk in-page `TasksUxShell` preview section on tasks page to validate:
+  - modal open/close
+  - drawer open/close
+  - global snackbar enqueue
+- Kept existing inline create form and existing edit navigation intact (no backend/auth/db changes).
+
+### Architecture for this phase (UI -> API/server -> DB)
+- `src/app/app/tasks/page.tsx` remains a server component and continues to load tasks and call existing server actions.
+- New client shell `TasksUxShell` receives existing create server action and form defaults.
+- `TasksUxShell` renders:
+  - `AppDialog` with existing `TaskForm` (same action and persistence path)
+  - `AppDrawer` informational primitive
+- Snackbar lifecycle is globally managed by `AppSnackbarProvider` via context.
+- Task create persistence remains unchanged (same server action -> Prisma -> Postgres).
+
+### Key decisions and why
+- No schema/API/auth changes in Phase 1:
+  - preserves existing stable backend behavior while introducing UI foundation.
+- Kept existing create and edit flows untouched:
+  - avoids regressions before Phase 2/3 UX rewiring.
+- Accessibility first for modal primitives:
+  - explicit `aria-labelledby` / `aria-describedby`
+  - ESC/backdrop close paths
+  - MUI modal focus trap retained.
+- Added a contained preview shell instead of immediate navigation removal:
+  - provides safe validation of modal/drawer/snackbar primitives before functional migration.
+
+### UX rules and rationale
+- Progressive disclosure:
+  - Not yet applied to task fields in Phase 1; deferred to Phase 2 where the create flow is redesigned.
+- No-navigation create/edit target direction:
+  - Infrastructure added now (`AppDialog`, `AppDrawer`) so Phase 2/3 can migrate core flows incrementally.
+- Feedback and delight:
+  - Global snackbar enqueue system now available app-wide for phase-by-phase adoption.
+
+### Where to change behavior quickly
+- Global snackbar queue/auto-hide/severity defaults:
+  - `src/components/ui/app-snackbar-provider.tsx`
+  - symbols: `DEFAULT_AUTO_HIDE_MS`, `enqueueSnackbar`, `useAppSnackbar`
+- Dialog accessibility/layout defaults:
+  - `src/components/ui/app-dialog.tsx`
+  - symbol: `AppDialog`
+- Drawer accessibility/layout defaults:
+  - `src/components/ui/app-drawer.tsx`
+  - symbol: `AppDrawer`
+- Tasks page UX preview wiring:
+  - `src/components/tasks/tasks-ux-shell.tsx`
+  - symbol: `TasksUxShell`
+  - and `src/app/app/tasks/page.tsx` where it is mounted
+- Global provider composition order:
+  - `src/components/app-providers.tsx`
+  - symbol: `AppProviders`

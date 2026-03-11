@@ -14,7 +14,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node prisma/seed.mjs",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "CI=1 playwright test --reporter=line"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -24,8 +25,10 @@
     "@mui/material-nextjs": "^7.3.8",
     "@prisma/client": "^6.14.0",
     "bcryptjs": "^3.0.3",
+    "framer-motion": "^12.34.5",
     "next": "16.1.6",
     "next-auth": "^4.24.13",
+    "openai": "^6.25.0",
     "pino": "^10.3.1",
     "prisma": "^6.14.0",
     "react": "19.2.3",

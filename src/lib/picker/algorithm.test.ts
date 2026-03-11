@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  chooseWeighted,
   scoreCandidate,
   selectTaskForIntent,
 } from "@/lib/picker/algorithm";
@@ -94,5 +95,34 @@ describe("picker algorithm", () => {
     if (result.status === "picked") {
       expect(result.task.id).toBe("low");
     }
+  });
+
+  it("returns no_match when fallback window is still too short", () => {
+    const result = selectTaskForIntent(
+      [createTask({ timeEstimateMinutes: 90 })],
+      baseIntent,
+      fairness,
+    );
+
+    expect(result.status).toBe("no_match");
+    if (result.status === "no_match") {
+      expect(result.reason).toContain("selected time");
+    }
+  });
+
+  it("chooseWeighted honors weight distribution boundaries", () => {
+    const candidates = [
+      scoreCandidate(createTask({ id: "a" }), baseIntent, fairness, false),
+      scoreCandidate(createTask({ id: "b" }), baseIntent, fairness, false),
+    ];
+
+    candidates[0].weight = 0.25;
+    candidates[1].weight = 0.75;
+
+    const first = chooseWeighted(candidates, () => 0.1);
+    const second = chooseWeighted(candidates, () => 0.95);
+
+    expect(first.task.id).toBe("a");
+    expect(second.task.id).toBe("b");
   });
 });

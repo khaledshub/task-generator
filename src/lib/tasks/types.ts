@@ -1,19 +1,32 @@
 import type { Prisma } from "@prisma/client";
 import {
   DEFAULT_TASK_TIPS,
+  LOCAL_AI_MODELS,
   TASK_CONTEXTS,
   TASK_ENERGIES,
   TASK_FREQUENCIES,
   TASK_TYPES,
+  TASK_AI_PROVIDERS,
   type TaskContextValue,
+  type TaskAiProviderValue,
   type TaskEnergyValue,
   type TaskFrequencyValue,
   type TaskTypeValue,
 } from "@/lib/tasks/config";
 
 export interface TaskFormState {
-  status: "idle" | "success" | "error";
+  statusState: "idle" | "success" | "error";
   message?: string;
+  aiStatus?: "success" | "error" | "info";
+  aiMessage?: string;
+  aiGenerationRequest?: {
+    taskId: string;
+    title: string;
+    description?: string;
+    starterStepPrompt?: string;
+    aiProvider: "OPENAI" | "LOCAL";
+    localModel?: (typeof LOCAL_AI_MODELS)[number];
+  };
 }
 
 export interface TaskFormValues {
@@ -25,6 +38,8 @@ export interface TaskFormValues {
   energy: TaskEnergyValue;
   timeEstimateMinutes: number;
   avoiding: boolean;
+  generateAiStepsEnabled: boolean;
+  aiProvider: TaskAiProviderValue;
   starterStep: string;
   checklistItems: string[];
   tips: string[];
@@ -39,6 +54,8 @@ export const DEFAULT_TASK_FORM_VALUES: TaskFormValues = {
   energy: TASK_ENERGIES[1],
   timeEstimateMinutes: 30,
   avoiding: false,
+  generateAiStepsEnabled: false,
+  aiProvider: TASK_AI_PROVIDERS[0],
   starterStep: "",
   checklistItems: [],
   tips: [...DEFAULT_TASK_TIPS],
@@ -56,6 +73,8 @@ export function mapTaskToFormValues(task: {
   energy: TaskEnergyValue;
   timeEstimateMinutes: number;
   avoiding: boolean;
+  generateAiStepsEnabled?: boolean;
+  aiProvider?: TaskAiProviderValue;
   starterStep: string;
   checklistItems: Prisma.JsonValue;
   tips: Prisma.JsonValue;
@@ -69,6 +88,8 @@ export function mapTaskToFormValues(task: {
     energy: task.energy,
     timeEstimateMinutes: task.timeEstimateMinutes,
     avoiding: task.avoiding,
+    generateAiStepsEnabled: task.generateAiStepsEnabled ?? false,
+    aiProvider: task.aiProvider ?? TASK_AI_PROVIDERS[0],
     starterStep: task.starterStep,
     checklistItems: toStringArray(task.checklistItems),
     tips: toStringArray(task.tips),
