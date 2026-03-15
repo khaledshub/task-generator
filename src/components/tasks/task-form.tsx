@@ -75,7 +75,7 @@ export function TaskForm({
 
   useEffect(() => {
     const request = state.aiGenerationRequest;
-    if (!request || state.statusState !== "success") {
+    if (!request || state.statusState !== "success" || isCreateMode) {
       return;
     }
 
@@ -104,6 +104,9 @@ export function TaskForm({
         });
 
         const data = (await response.json().catch(() => ({}))) as {
+          result?: "ready" | "in_progress" | "error";
+          aiStepsGenerationStatus?: "PENDING" | "READY" | "FAILED";
+          message?: string;
           error?: string;
           tips?: string[];
         };
@@ -113,6 +116,15 @@ export function TaskForm({
           setLocalAiMessage(
             data.error ??
               `AI generation failed after task save (${TASK_AI_PROVIDER_LABELS[request.aiProvider]}).`,
+          );
+          return;
+        }
+
+        if (data.result === "in_progress" || data.aiStepsGenerationStatus === "PENDING") {
+          setLocalAiStatus("info");
+          setLocalAiMessage(
+            data.message ??
+              `AI generation is still in progress (${TASK_AI_PROVIDER_LABELS[request.aiProvider]}).`,
           );
           return;
         }
@@ -138,7 +150,7 @@ export function TaskForm({
         );
       }
     })();
-  }, [state.aiGenerationRequest, state.statusState]);
+  }, [isCreateMode, state.aiGenerationRequest, state.statusState]);
 
   useEffect(() => {
     const effectiveState: TaskFormState = {

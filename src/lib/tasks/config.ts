@@ -29,6 +29,19 @@ export type TaskEnergyValue = (typeof TASK_ENERGIES)[number];
 export type TaskAiProviderValue = (typeof TASK_AI_PROVIDERS)[number];
 export type LocalAiModelValue = (typeof LOCAL_AI_MODELS)[number];
 
+export function getDefaultTaskAiProvider(): TaskAiProviderValue {
+  const configuredProvider = process.env.NEXT_PUBLIC_DEFAULT_AI_PROVIDER;
+
+  if (
+    configuredProvider &&
+    TASK_AI_PROVIDERS.includes(configuredProvider as TaskAiProviderValue)
+  ) {
+    return configuredProvider as TaskAiProviderValue;
+  }
+
+  return TASK_AI_PROVIDERS[0];
+}
+
 export const TASK_FREQUENCY_LABELS: Record<TaskFrequencyValue, string> = {
   ONE_OFF: "One-off",
   DAILY: "Daily",

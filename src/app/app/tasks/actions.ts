@@ -77,6 +77,16 @@ export async function updateTaskAction(
     const userId = await requireSessionUserId();
     const input = taskFormDataToInput(formData);
     const localModel = resolveLocalModel(formData);
+    const existingTask = await loadExistingTaskForUpdate(taskId, userId);
+
+    if (!existingTask) {
+      return {
+        statusState: "error",
+        message: "Task not found.",
+      };
+    }
+
+    const nextAiBehavior = resolveUpdateAiBehavior(existingTask, input);
 
     let updateResult;
 
@@ -88,6 +98,7 @@ export async function updateTaskAction(
         },
         data: {
           ...input,
+          aiStepsGenerationStatus: nextAiBehavior.nextStatus,
         },
       });
     } catch (error) {
@@ -129,26 +140,6 @@ export async function updateTaskAction(
       };
     }
 
-    const updatedTask = await prisma.task.findFirst({
-      where: {
-        id: taskId,
-        userId,
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        starterStep: true,
-      },
-    });
-
-    if (!updatedTask) {
-      return {
-        statusState: "error",
-        message: "Task not found.",
-      };
-    }
-
     revalidatePath("/app/tasks");
     revalidatePath(`/app/tasks/${taskId}`);
     revalidatePath(`/app/tasks/${taskId}/edit`);
@@ -156,16 +147,16 @@ export async function updateTaskAction(
     return {
       statusState: "success",
       message: "Task updated.",
-      aiStatus: input.generateAiStepsEnabled ? "info" : undefined,
-      aiMessage: input.generateAiStepsEnabled
+      aiStatus: nextAiBehavior.shouldTriggerGeneration ? "info" : undefined,
+      aiMessage: nextAiBehavior.shouldTriggerGeneration
         ? `Generating AI tips with ${toAiProviderLabel(input.aiProvider)}...`
         : undefined,
-      aiGenerationRequest: input.generateAiStepsEnabled
+      aiGenerationRequest: nextAiBehavior.shouldTriggerGeneration
         ? {
-            taskId: updatedTask.id,
-            title: updatedTask.title,
-            description: updatedTask.description ?? undefined,
-            starterStepPrompt: updatedTask.starterStep,
+            taskId,
+            title: input.title,
+            description: input.description,
+            starterStepPrompt: input.starterStep,
             aiProvider: input.aiProvider,
             localModel,
           }
@@ -325,6 +316,89 @@ async function createTaskRecord({
       aiProvider: "LOCAL",
     };
   }
+}
+
+async function loadExistingTaskForUpdate(taskId: string, userId: string): Promise<{
+  id: string;
+  generateAiStepsEnabled?: boolean;
+  aiProvider?: "OPENAI" | "LOCAL";
+  aiStepsGenerationStatus?: "PENDING" | "READY" | "FAILED" | "SKIPPED";
+} | null> {
+  try {
+    return await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        userId,
+      },
+      select: {
+        id: true,
+        generateAiStepsEnabled: true,
+        aiProvider: true,
+        aiStepsGenerationStatus: true,
+      },
+    });
+  } catch (error) {
+    if (!isAiSchemaColumnMissingError(error)) {
+      throw error;
+    }
+
+    logger.warn(
+      { error, userId, taskId },
+      "AI task fields unavailable in database; reading task without AI fields",
+    );
+
+    const legacyTask = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        userId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return legacyTask
+      ? {
+          ...legacyTask,
+          generateAiStepsEnabled: false,
+          aiProvider: "LOCAL",
+          aiStepsGenerationStatus: "SKIPPED",
+        }
+      : null;
+  }
+}
+
+function resolveUpdateAiBehavior(
+  existingTask: {
+    generateAiStepsEnabled?: boolean;
+    aiProvider?: "OPENAI" | "LOCAL";
+    aiStepsGenerationStatus?: "PENDING" | "READY" | "FAILED" | "SKIPPED";
+  },
+  input: ReturnType<typeof taskFormDataToInput>,
+): {
+  nextStatus: "PENDING" | "READY" | "FAILED" | "SKIPPED";
+  shouldTriggerGeneration: boolean;
+} {
+  if (!input.generateAiStepsEnabled) {
+    return {
+      nextStatus: "SKIPPED",
+      shouldTriggerGeneration: false,
+    };
+  }
+
+  const currentStatus = existingTask.aiStepsGenerationStatus ?? "SKIPPED";
+  const currentProvider = existingTask.aiProvider ?? "LOCAL";
+  const wasAiEnabled = existingTask.generateAiStepsEnabled === true;
+  const shouldTriggerGeneration =
+    !wasAiEnabled ||
+    currentProvider !== input.aiProvider ||
+    currentStatus === "FAILED" ||
+    currentStatus === "SKIPPED";
+
+  return {
+    nextStatus: shouldTriggerGeneration ? "PENDING" : currentStatus,
+    shouldTriggerGeneration,
+  };
 }
 
 function isAiSchemaColumnMissingError(error: unknown): boolean {

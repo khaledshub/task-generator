@@ -1,0 +1,421 @@
+task-generator backlog
+
+P0 — correctness / reliability
+
+TG-001 — AI lifecycle deterministic server contract
+
+Area: AI lifecycle
+Priority: P0
+Status: Implemented / Needs review
+Why it matters: Prevents ambiguous AI states and duplicate regeneration behavior.
+Scope:
+	•	explicit initial AI status on create/update
+	•	terminal state on success/failure
+	•	no duplicate work for READY / in-flight requests
+Files:
+	•	src/app/app/tasks/actions.ts
+	•	src/app/api/ai/starter-step/route.ts
+
+TG-002 — Review race-safety of in-flight claim mechanism
+
+Area: AI lifecycle / concurrency
+Priority: P0
+Status: Todo
+Why it matters: Current idempotency may still be unsafe if two requests race before the claim is persisted.
+Questions to answer:
+	•	Is the AiStarterStepRequest uniqueness actually DB-enforced?
+	•	Is the implementation transaction-safe?
+	•	Can duplicate concurrent requests still both begin work?
+
+TG-003 — Decide update semantics for existing READY AI content
+
+Area: AI lifecycle / product behavior
+Priority: P0
+Status: Todo
+Why it matters: Updating a task may unintentionally reset good generated content.
+Decision needed:
+	•	On edit, when should AI regenerate?
+	•	Should some edits preserve READY content?
+	•	Should disabling AI mark as SKIPPED and clear content, or only change status?
+
+TG-004 — Client duplicate-trigger cleanup
+
+Area: AI orchestration / client state
+Priority: P0
+Status: Todo
+Why it matters: Prevents rerenders, modal reopen, or repeated submits from creating duplicate AI calls or confusing UI.
+Likely files:
+	•	src/components/tasks/task-form.tsx
+	•	maybe src/components/tasks/home-create-task-spotlight.tsx
+
+TG-005 — Stale PENDING recovery strategy
+
+Area: AI lifecycle / operational resilience
+Priority: P0
+Status: Todo
+Why it matters: Even if future flows are better, previously stuck or mid-crash tasks may remain PENDING.
+Scope options:
+	•	detect stale PENDING
+	•	show retry affordance
+	•	classify long-running PENDING more clearly
+
+⸻
+
+P1 — test coverage / validation / consistency
+
+TG-006 — Focused server-side AI lifecycle tests
+
+Area: Testing
+Priority: P1
+Status: Todo
+Why it matters: Current high-value lifecycle logic should be protected by focused tests, not just smoke coverage.
+Test targets:
+	•	AI enabled => PENDING
+	•	AI disabled => SKIPPED or non-pending state
+	•	success => READY
+	•	failure => FAILED
+	•	repeated call while READY
+	•	repeated call while PENDING
+
+TG-007 — Client-side AI flow tests / E2E assertions
+
+Area: Testing / UX reliability
+Priority: P1
+Status: Todo
+Why it matters: Verifies that visible UI behavior matches server truth.
+Potential scope:
+	•	AI-on task create flow
+	•	AI failure path
+	•	duplicate-trigger resistance
+	•	polling settles into stable visible state
+
+TG-008 — Validation consistency across AI routes and task flows
+
+Area: Validation / correctness
+Priority: P1
+Status: Todo
+Why it matters: Ensures task creation, AI trigger, and AI status APIs all enforce compatible assumptions.
+Things to check:
+	•	provider values
+	•	task ownership
+	•	request payload shapes
+	•	malformed AI outputs
+	•	empty/partial generated content handling
+
+TG-009 — Route response contract consistency
+
+Area: API contracts
+Priority: P1
+Status: Todo
+Why it matters: Client components need predictable response shapes for READY, FAILED, PENDING, and idempotent/no-op cases.
+Scope:
+	•	audit current response payloads
+	•	normalize return shape if needed
+	•	avoid hidden special cases
+
+⸻
+
+P1 — UI/UX reliability
+
+TG-010 — Polling and status synchronization cleanup
+
+Area: AI status UX
+Priority: P1
+Status: Todo
+Why it matters: Current AI flow is split across client fetch + polling; easy place for drift.
+Goals:
+	•	one clear owner for status messaging
+	•	polling stops at correct terminal states
+	•	no premature clearing/resetting
+
+TG-011 — Task creation UX reliability under AI failure
+
+Area: UX resilience
+Priority: P1
+Status: Todo
+Why it matters: Task creation must remain successful and understandable even if AI enrichment fails.
+Scope:
+	•	clearer message hierarchy
+	•	plain task creation should feel complete
+	•	retry or “continue without AI” clarity
+
+TG-012 — Create vs edit AI behavior consistency
+
+Area: UX / workflow consistency
+Priority: P1
+Status: Todo
+Why it matters: Same AI option should behave consistently whether user creates or edits a task.
+Questions:
+	•	do both paths trigger AI the same way?
+	•	do they report status the same way?
+	•	do they preserve content the same way?
+
+⸻
+
+P2 — maintainability / architecture
+
+TG-013 — Reduce split ownership between TaskForm and HomeCreateTaskSpotlight
+
+Area: Maintainability / client architecture
+Priority: P2
+Status: Todo
+Why it matters: Duplicate orchestration logic causes drift and makes debugging harder.
+Goal:
+	•	one clear owner for AI follow-up orchestration
+	•	the other component becomes presentation-focused
+
+TG-014 — Extract reusable AI lifecycle helpers only if duplication proves real
+
+Area: Maintainability
+Priority: P2
+Status: Todo
+Why it matters: Avoid premature abstraction, but capture repeated lifecycle logic if it emerges after a few slices.
+
+TG-015 — Improve logging / telemetry around AI lifecycle
+
+Area: Observability
+Priority: P2
+Status: Todo
+Why it matters: Helps debug provider failures, stuck states, and lifecycle transitions.
+Scope:
+	•	status transitions
+	•	generation failure reasons
+	•	duplicate/in-flight detection
+
+⸻
+
+P2 — operational / data integrity
+
+TG-016 — Review migration drift / compatibility risk
+
+Area: Schema/runtime health
+Priority: P2
+Status: Todo
+Why it matters: Prompt 1 found compatibility code implying column drift risk.
+Scope:
+	•	inspect migration history
+	•	verify schema/runtime assumptions
+	•	remove or document compatibility paths if appropriate
+
+TG-017 — Refresh stale docs to match current code paths
+
+Area: Documentation
+Priority: P2
+Status: Todo
+Why it matters: Code is currently the source of truth; docs lagging increases onboarding/debug friction.
+
+⸻
+
+P3 — future enhancements / nice-to-have
+
+TG-018 — Retry action for failed AI generation
+
+Area: AI UX / resilience
+Priority: P3
+Status: Todo
+
+TG-019 — Provider fallback strategy
+
+Area: AI resilience
+Priority: P3
+Status: Todo
+
+TG-020 — Better AI lifecycle dashboard / admin visibility
+
+Area: Observability
+Priority: P3
+Status: Todo
+
+TG-021 — Broader AI architecture cleanup
+
+Area: Architecture
+Priority: P3
+Status: Todo
+Note: Only after correctness and test coverage stabilize.
+
+⸻
+
+Prompt-flow groups
+
+The goal of prompt-flow groups is to avoid running the full 6-prompt sequence for every single ticket.
+Instead, one Codex run should cover one coherent implementation or review area.
+
+Use these rules:
+	•	Run the full 6-prompt flow only for the group anchor task.
+	•	Cover the linked tasks inside the same run unless the group produces a clear blocker or split.
+	•	Use prompts 1 to 3 only for review/decision-heavy groups when no immediate code change is needed.
+	•	Create a new standalone 6-prompt run only when a linked task becomes materially larger than the anchor scope.
+
+Group A — Server AI lifecycle correctness
+
+Anchor:
+	•	TG-001 — AI lifecycle deterministic server contract
+
+Grouped with anchor:
+	•	TG-002 — Review race-safety of in-flight claim mechanism
+	•	TG-003 — Decide update semantics for existing READY AI content
+	•	TG-006 — Focused server-side AI lifecycle tests
+
+Why grouped:
+	•	These all touch the same server-side lifecycle state machine and route/action behavior.
+	•	They share the same core files and should be reasoned about together.
+
+Default run style:
+	•	Full 6 prompts for the anchor
+	•	Follow-up 3 to 6 prompts for grouped tickets only when the anchor reveals a concrete next slice
+
+Primary files:
+	•	src/app/app/tasks/actions.ts
+	•	src/app/api/ai/starter-step/route.ts
+	•	src/app/api/ai/starter-step/route.test.ts
+	•	src/app/app/tasks/actions.test.ts
+
+Group B — Server contract, validation, and stale-state handling
+
+Anchor:
+	•	TG-005 — Stale PENDING recovery strategy
+
+Grouped with anchor:
+	•	TG-008 — Validation consistency across AI routes and task flows
+	•	TG-009 — Route response contract consistency
+
+Why grouped:
+	•	These are adjacent server-side hardening tasks around state recovery and predictable contracts.
+	•	They are best solved after Group A stabilizes.
+
+Default run style:
+	•	Full 6 prompts for TG-005 only if implementation is ready
+	•	Otherwise prompts 1 to 3 as a grouped design/review run
+
+Primary files:
+	•	src/app/api/ai/starter-step/route.ts
+	•	src/app/api/tasks/[taskId]/ai-status/route.ts
+	•	src/lib/validation/ai.ts
+	•	src/lib/validation/task.ts
+
+Group C — Client AI orchestration and UX reliability
+
+Anchor:
+	•	TG-004 — Client duplicate-trigger cleanup
+
+Grouped with anchor:
+	•	TG-010 — Polling and status synchronization cleanup
+	•	TG-011 — Task creation UX reliability under AI failure
+	•	TG-012 — Create vs edit AI behavior consistency
+	•	TG-013 — Reduce split ownership between TaskForm and HomeCreateTaskSpotlight
+
+Why grouped:
+	•	These all center on client ownership, visible AI status, and duplicate-trigger behavior.
+	•	They share the same interaction surfaces and are expensive to reason about separately.
+
+Default run style:
+	•	Full 6 prompts for the anchor
+	•	Grouped tasks should usually be handled as slices within that same run
+
+Primary files:
+	•	src/components/tasks/task-form.tsx
+	•	src/components/tasks/home-create-task-spotlight.tsx
+	•	src/components/tasks/task-ai-pending-watcher.tsx
+	•	src/app/app/tasks/[taskId]/page.tsx
+
+Group D — Test expansion and user-visible flow verification
+
+Anchor:
+	•	TG-007 — Client-side AI flow tests / E2E assertions
+
+Grouped with anchor:
+	•	no additional required grouped tasks
+
+Why grouped:
+	•	This is best treated as a dedicated testing run after Group A and Group C behavior settles.
+
+Default run style:
+	•	Full 6 prompts only when the client flow has stabilized enough to test
+
+Primary files:
+	•	tests/e2e/smoke.spec.ts
+	•	src/app/api/ai/starter-step/route.test.ts
+	•	src/app/app/tasks/actions.test.ts
+
+Group E — Observability, runtime health, and drift review
+
+Anchor:
+	•	TG-015 — Improve logging / telemetry around AI lifecycle
+
+Grouped with anchor:
+	•	TG-016 — Review migration drift / compatibility risk
+
+Why grouped:
+	•	Both are operational hardening tasks and can often be addressed in one repo-health run.
+
+Default run style:
+	•	Prompts 1 to 3 first
+	•	Use prompts 4 to 6 only if a narrow implementation slice is clearly justified
+
+Primary files:
+	•	src/lib/logger.ts
+	•	src/app/api/ai/starter-step/route.ts
+	•	src/app/app/tasks/actions.ts
+	•	prisma/migrations/**
+
+Group F — Docs and maintainability follow-up
+
+Anchor:
+	•	TG-014 — Extract reusable AI lifecycle helpers only if duplication proves real
+
+Grouped with anchor:
+	•	TG-017 — Refresh stale docs to match current code paths
+	•	TG-021 — Broader AI architecture cleanup
+
+Why grouped:
+	•	These are lower-priority cleanup tasks that should happen only after correctness work settles.
+
+Default run style:
+	•	Prompts 1 to 3 only unless there is a very small cleanup slice
+
+Group G — Future product enhancements
+
+Anchor:
+	•	TG-018 — Retry action for failed AI generation
+
+Grouped with anchor:
+	•	TG-019 — Provider fallback strategy
+	•	TG-020 — Better AI lifecycle dashboard / admin visibility
+
+Why grouped:
+	•	These are future-facing enhancements and should not consume full prompt cycles until P0/P1 work is done.
+
+Default run style:
+	•	Defer
+	•	If revisited, start with prompts 1 to 3 only
+
+Recommended execution order by prompt-flow group
+
+Cycle 1 — AI lifecycle correctness
+	•	TG-001 — AI lifecycle deterministic server contract
+	•	TG-002 — review race-safety
+	•	TG-003 — decide update semantics
+	•	TG-006 — focused server-side lifecycle tests
+
+Cycle 2 — client orchestration reliability
+	•	TG-004 — client duplicate-trigger cleanup
+	•	TG-009 — route response contract consistency
+	•	TG-010 — polling/status synchronization cleanup
+	•	TG-011 — task creation UX reliability under AI failure
+
+Cycle 3 — consistency and coverage
+	•	TG-007 — client/E2E AI flow tests
+	•	TG-008 — validation consistency
+	•	TG-012 — create vs edit AI behavior consistency
+
+Cycle 4 — maintainability and hardening
+	•	TG-013 — reduce split ownership
+	•	TG-015 — logging/telemetry
+	•	TG-016 — migration drift review
+	•	TG-017 — docs refresh
+
+Cycle 5 — optional product enhancements
+	•	TG-018 — retry action
+	•	TG-019 — provider fallback
+	•	TG-020 — admin visibility
+	•	TG-021 — broader cleanup

@@ -47,3 +47,4 @@ next-env.d.ts
 # local secret files (keep out of git)
 /secrets/*
 !/secrets/README.md
+.env*.local

@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth/options";
 import { generateTaskInsights } from "@/lib/ai/task-insights";
 import { logger } from "@/lib/logger";
+import { getDefaultTaskAiProvider } from "@/lib/tasks/config";
 import { taskInsightsRequestSchema } from "@/lib/validation/ai";
 
 export async function POST(request: Request) {
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
     }
 
     const generated = await generateTaskInsights({
-      provider: aiProvider ?? "LOCAL",
+      provider: aiProvider ?? getDefaultTaskAiProvider(),
       title,
       description,
       starterStep,

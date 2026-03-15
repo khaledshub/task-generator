@@ -1,7 +1,8 @@
 import { z } from "zod";
 import {
-  TASK_CONTEXTS,
+  getDefaultTaskAiProvider,
   TASK_AI_PROVIDERS,
+  TASK_CONTEXTS,
   TASK_DESCRIPTION_MAX_LENGTH,
   TASK_ENERGIES,
   TASK_FREQUENCIES,
@@ -72,7 +73,7 @@ export function taskFormDataToInput(formData: FormData): TaskInput {
     ),
     avoiding: formData.get("avoiding") === "on",
     generateAiStepsEnabled: formData.get("generateAiStepsEnabled") === "on",
-    aiProvider: String(formData.get("aiProvider") ?? TASK_AI_PROVIDERS[0]),
+    aiProvider: String(formData.get("aiProvider") ?? getDefaultTaskAiProvider()),
     starterStep: String(formData.get("starterStep") ?? ""),
     checklistItems: parseMultilineText(
       String(formData.get("checklistItems") ?? ""),
