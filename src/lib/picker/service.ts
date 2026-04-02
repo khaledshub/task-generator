@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { Prisma } from "@prisma/client";
+import { Prisma, type PickAction } from "@prisma/client";
 import {
   INTENT_MODE_OPTIONS,
   RECENT_DONE_LOOKBACK_DAYS,
@@ -77,9 +77,10 @@ export async function createIntentAndPickTask(
       select: { taskId: true },
     }),
   ]);
+  const availableTasks = tasks.filter((task) => task.pickEvents[0]?.action !== "DONE");
 
   const pickerResult = selectTaskForIntent(
-    tasks.map((task) => ({
+    availableTasks.map((task) => ({
       id: task.id,
       title: task.title,
       context: task.context,
@@ -110,7 +111,7 @@ export async function createIntentAndPickTask(
     };
   }
 
-  const selectedTask = tasks.find((task) => task.id === pickerResult.task.id);
+  const selectedTask = availableTasks.find((task) => task.id === pickerResult.task.id);
 
   if (!selectedTask) {
     return {
@@ -252,6 +253,9 @@ async function loadPickerTasks(userId: string): Promise<
     checklistItems: Prisma.JsonValue;
     tips: Prisma.JsonValue;
     aiGeneratedSteps?: Prisma.JsonValue | null;
+    pickEvents: Array<{
+      action: PickAction;
+    }>;
   }>
 > {
   try {
@@ -273,6 +277,13 @@ async function loadPickerTasks(userId: string): Promise<
         checklistItems: true,
         tips: true,
         aiGeneratedSteps: true,
+        pickEvents: {
+          orderBy: { pickedAt: "desc" },
+          take: 1,
+          select: {
+            action: true,
+          },
+        },
       },
     });
   } catch (error) {
@@ -302,6 +313,13 @@ async function loadPickerTasks(userId: string): Promise<
           starterStep: true,
           checklistItems: true,
           tips: true,
+          pickEvents: {
+            orderBy: { pickedAt: "desc" },
+            take: 1,
+            select: {
+              action: true,
+            },
+          },
         },
       });
     }

@@ -12,8 +12,9 @@ import {
   Typography,
 } from "@mui/material";
 import { motion } from "framer-motion";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { TaskForm } from "@/components/tasks/task-form";
+import { useTaskAiOrchestration } from "@/components/tasks/use-task-ai-orchestration";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { AppDrawer } from "@/components/ui/app-drawer";
 import { createTaskAction } from "@/app/app/tasks/actions";
@@ -36,7 +37,7 @@ export function HomeCreateTaskSpotlight({
   onStatusChange,
   showStatus = true,
   title = "Create Your Next Task",
-  description = "Add a task directly from home. Your task is saved to your account and linked to your user ID so it is available every time you log back in.",
+  description,
   buttonLabel = "Create task",
   showEnhancements = false,
   showProductivityTipsButton = true,
@@ -44,254 +45,46 @@ export function HomeCreateTaskSpotlight({
   const [open, setOpen] = useState(false);
   const [isInfoDrawerOpen, setIsInfoDrawerOpen] = useState(false);
   const [localStatus, setLocalStatus] = useState<TaskFormState>({ statusState: "idle" });
-  const aiRequestKeyRef = useRef<string | null>(null);
-  const {
-    statusState: localStatusState,
-    message: localStatusMessage,
-    createdTaskId: localStatusTaskId,
-    aiStatus: localStatusAiStatus,
-  } = localStatus;
+  const orchestration = useTaskAiOrchestration({
+    baseState: localStatus,
+    context: "create",
+    enabled: true,
+  });
+  const effectiveStatus = orchestration.enhancedState;
 
   const handleStateChange = useCallback(
     (nextState: TaskFormState) => {
-      setLocalStatus((current) => {
-        const currentRequestKey = toAiRequestKey(current.aiGenerationRequest);
-        const nextRequestKey = toAiRequestKey(nextState.aiGenerationRequest);
-        if (
-          current.statusState === nextState.statusState &&
-          current.message === nextState.message &&
-          current.aiStatus === nextState.aiStatus &&
-          current.aiMessage === nextState.aiMessage &&
-          current.createdTaskId === nextState.createdTaskId &&
-          currentRequestKey === nextRequestKey
-        ) {
-          return current;
-        }
-
-        return nextState;
-      });
-      onStatusChange?.(nextState);
-
-      if (nextState.statusState === "success") {
-        setOpen(false);
-      }
+      setLocalStatus(nextState);
     },
-    [onStatusChange],
+    [],
   );
 
   useEffect(() => {
-    const request = localStatus.aiGenerationRequest;
-    if (
-      localStatusState !== "success" ||
-      !request ||
-      !localStatusTaskId
-    ) {
-      return;
-    }
-
-    const requestKey = toAiRequestKey(request);
-    if (!requestKey || aiRequestKeyRef.current === requestKey) {
-      return;
-    }
-    aiRequestKeyRef.current = requestKey;
-
-    void (async () => {
-      const sourceLabel =
-        request.aiProvider === "LOCAL" && request.localModel
-          ? `${request.aiProvider} (${request.localModel})`
-          : request.aiProvider;
-
-      setLocalStatus((current) => {
-        if (current.createdTaskId !== localStatusTaskId) {
-          return current;
-        }
-
-        return {
-          ...current,
-          aiStatus: "info",
-          aiMessage: `Generating AI tips with ${sourceLabel}...`,
-        };
-      });
-
-      try {
-        const response = await fetch("/api/ai/starter-step", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(request),
-        });
-
-        const data = (await response.json().catch(() => ({}))) as {
-          result?: "ready" | "in_progress" | "error";
-          aiStepsGenerationStatus?: "PENDING" | "READY" | "FAILED";
-          message?: string;
-          error?: string;
-        };
-
-        if (!response.ok) {
-          const nextErrorState: TaskFormState = {
-            ...localStatus,
-            aiStatus: "error",
-            aiMessage:
-              data.error ??
-              `AI generation failed after task save (${request.aiProvider}).`,
-          };
-          setLocalStatus((current) =>
-            current.createdTaskId === localStatusTaskId ? nextErrorState : current,
-          );
-          onStatusChange?.(nextErrorState);
-          return;
-        }
-
-        if (data.result === "ready" || data.aiStepsGenerationStatus === "READY") {
-          const nextReadyState: TaskFormState = {
-            ...localStatus,
-            aiStatus: "success",
-            aiMessage: "AI tips are ready and available on the task details page.",
-          };
-          setLocalStatus((current) =>
-            current.createdTaskId === localStatusTaskId ? nextReadyState : current,
-          );
-          onStatusChange?.(nextReadyState);
-          return;
-        }
-
-        const nextInfoState: TaskFormState = {
-          ...localStatus,
-          aiStatus: "info",
-          aiMessage:
-            data.message ??
-            `AI generation is still in progress (${request.aiProvider}).`,
-        };
-        setLocalStatus((current) =>
-          current.createdTaskId === localStatusTaskId ? nextInfoState : current,
-        );
-        onStatusChange?.(nextInfoState);
-      } catch (error) {
-        const nextErrorState: TaskFormState = {
-          ...localStatus,
-          aiStatus: "error",
-          aiMessage:
-            error instanceof Error
-              ? error.message
-              : `AI generation failed after task save (${request.aiProvider}).`,
-        };
-        setLocalStatus((current) =>
-          current.createdTaskId === localStatusTaskId ? nextErrorState : current,
-        );
-        onStatusChange?.(nextErrorState);
-      }
-    })();
-  }, [aiRequestKeyRef, localStatus, localStatusState, localStatusTaskId, onStatusChange]);
+    onStatusChange?.(effectiveStatus);
+  }, [effectiveStatus, onStatusChange]);
 
   useEffect(() => {
-    if (
-      localStatusState !== "success" ||
-      localStatusAiStatus !== "info" ||
-      !localStatusTaskId
-    ) {
+    if (!open || effectiveStatus.statusState !== "success") {
       return;
     }
 
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const pollAiStatus = async () => {
-      try {
-        const response = await fetch(
-          `/api/tasks/${localStatusTaskId}/ai-status`,
-          { cache: "no-store" },
-        );
-        const data = (await response.json().catch(() => ({}))) as {
-          aiStepsGenerationStatus?: "PENDING" | "READY" | "FAILED" | "SKIPPED";
-          error?: string;
-        };
-
-        if (!response.ok && (response.status === 401 || response.status === 404)) {
-          const nextErrorState: TaskFormState = {
-            statusState: localStatusState,
-            message: localStatusMessage,
-            createdTaskId: localStatusTaskId,
-            aiStatus: "error",
-            aiMessage: data.error ?? "Could not confirm AI task generation status.",
-          };
-
-          setLocalStatus((current) => {
-            if (current.createdTaskId !== localStatusTaskId) {
-              return current;
-            }
-
-            return {
-              ...current,
-              aiStatus: "error",
-              aiMessage: data.error ?? "Could not confirm AI task generation status.",
-            };
-          });
-          onStatusChange?.(nextErrorState);
-          return;
-        }
-
-        if (response.ok && data.aiStepsGenerationStatus && data.aiStepsGenerationStatus !== "PENDING") {
-          if (stopped) {
-            return;
-          }
-
-          const nextAiState = toSpotlightAiState(
-            data.aiStepsGenerationStatus,
-            localStatus,
-          );
-
-          const nextStatusState: TaskFormState = {
-            statusState: localStatusState,
-            message: localStatusMessage,
-            createdTaskId: localStatusTaskId,
-            aiStatus: nextAiState.aiStatus,
-            aiMessage: nextAiState.aiMessage,
-          };
-
-          setLocalStatus((current) => {
-            if (
-              current.createdTaskId !== localStatusTaskId ||
-              current.aiStatus !== "info"
-            ) {
-              return current;
-            }
-
-            return {
-              ...current,
-              aiStatus: nextAiState.aiStatus,
-              aiMessage: nextAiState.aiMessage,
-            };
-          });
-          onStatusChange?.(nextStatusState);
-          return;
-        }
-      } catch {
-        // Keep polling when transient network errors happen.
-      }
-
-      if (!stopped) {
-        timer = setTimeout(pollAiStatus, 1800);
-      }
-    };
-
-    timer = setTimeout(pollAiStatus, 1800);
-
-    return () => {
-      stopped = true;
-      if (timer) {
+    const hasAiRequest = Boolean(
+      effectiveStatus.aiGenerationRequest && effectiveStatus.createdTaskId,
+    );
+    if (!hasAiRequest) {
+      const timer = setTimeout(() => setOpen(false), 0);
+      return () => {
         clearTimeout(timer);
-      }
-    };
-  }, [
-    localStatus,
-    localStatusAiStatus,
-    localStatusMessage,
-    localStatusTaskId,
-    localStatusState,
-    onStatusChange,
-  ]);
+      };
+    }
+
+    if (orchestration.lifecycle === "ai_success") {
+      const timer = setTimeout(() => setOpen(false), 0);
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+  }, [effectiveStatus, open, orchestration.lifecycle]);
 
   return (
     <>
@@ -352,9 +145,11 @@ export function HomeCreateTaskSpotlight({
           <Typography variant="h4" component="h2">
             {title}
           </Typography>
-          <Typography sx={{ color: "rgba(255,255,255,0.84)" }} maxWidth={760}>
-            {description}
-          </Typography>
+          {description ? (
+            <Typography sx={{ color: "rgba(255,255,255,0.84)" }} maxWidth={760}>
+              {description}
+            </Typography>
+          ) : null}
           <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.98 }}>
             <Button
               variant="contained"
@@ -386,10 +181,10 @@ export function HomeCreateTaskSpotlight({
             </Button>
           ) : null}
 
-          {showStatus && localStatus.statusState !== "idle" ? (
+          {showStatus && effectiveStatus.statusState !== "idle" ? (
             <Stack spacing={1} sx={{ width: "100%", maxWidth: 760 }}>
               <Alert
-                severity={localStatus.statusState === "success" ? "success" : "error"}
+                severity={effectiveStatus.statusState === "success" ? "success" : "error"}
                 sx={{ textAlign: "left" }}
                 action={
                   <IconButton
@@ -402,14 +197,14 @@ export function HomeCreateTaskSpotlight({
                   </IconButton>
                 }
               >
-                {localStatus.message ??
-                  (localStatus.statusState === "success"
+                {effectiveStatus.message ??
+                  (effectiveStatus.statusState === "success"
                     ? "Task created."
                     : "Could not save task.")}
               </Alert>
-              {localStatus.aiStatus && localStatus.aiMessage ? (
-                <Alert severity={localStatus.aiStatus} sx={{ textAlign: "left" }}>
-                  {localStatus.aiMessage}
+              {effectiveStatus.aiStatus && effectiveStatus.aiMessage ? (
+                <Alert severity={effectiveStatus.aiStatus} sx={{ textAlign: "left" }}>
+                  {effectiveStatus.aiMessage}
                 </Alert>
               ) : null}
             </Stack>
@@ -429,6 +224,12 @@ export function HomeCreateTaskSpotlight({
           submitLabel="Create task"
           onStateChange={handleStateChange}
           mode="create"
+          externalAiState={{
+            aiStatus: effectiveStatus.aiStatus,
+            aiMessage: effectiveStatus.aiMessage,
+          }}
+          onRetryAi={orchestration.retry}
+          disableSubmit={orchestration.isAiBusy}
         />
       </AppDialog>
 
@@ -452,46 +253,4 @@ export function HomeCreateTaskSpotlight({
       </AppDrawer>
     </>
   );
-}
-
-function toSpotlightAiState(
-  status: "PENDING" | "READY" | "FAILED" | "SKIPPED",
-  currentStatus: TaskFormState,
-): Pick<TaskFormState, "aiStatus" | "aiMessage"> {
-  if (status === "READY") {
-    return {
-      aiStatus: "success",
-      aiMessage: "AI tips are ready and available on the task details page.",
-    };
-  }
-
-  if (status === "FAILED") {
-    return {
-      aiStatus: "error",
-      aiMessage:
-        "Task created, but AI generation failed. You can still open the task and continue without AI tips.",
-    };
-  }
-
-  if (status === "SKIPPED") {
-    return {
-      aiStatus: undefined,
-      aiMessage: undefined,
-    };
-  }
-
-  return {
-    aiStatus: currentStatus.aiStatus,
-    aiMessage: currentStatus.aiMessage,
-  };
-}
-
-function toAiRequestKey(
-  request: TaskFormState["aiGenerationRequest"],
-): string | null {
-  if (!request) {
-    return null;
-  }
-
-  return `${request.taskId}:${request.aiProvider}:${request.localModel ?? ""}`;
 }

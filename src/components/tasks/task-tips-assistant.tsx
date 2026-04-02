@@ -55,6 +55,12 @@ interface TaskInsightsResponse {
 }
 
 const TASK_TIPS_CACHE_PREFIX = "task-tips-cache:";
+const taskInsightsRequestCache = new Map<string, Promise<TaskInsightsFetchResult>>();
+
+interface TaskInsightsFetchResult {
+  ok: boolean;
+  data: TaskInsightsResponse;
+}
 
 export function TaskTipsAssistant({
   taskId,
@@ -72,10 +78,14 @@ export function TaskTipsAssistant({
     initialTips.length > 0 ? "idle" : "loading",
   );
   const [tipsError, setTipsError] = useState<string | null>(null);
+  const [initialAnswer, setInitialAnswer] = useState<string | null>(null);
+  const [latestChatAnswer, setLatestChatAnswer] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
   const [chatError, setChatError] = useState<string | null>(null);
   const [isAsking, setIsAsking] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const hasRequestedInitialTipsRef = useRef(false);
+  const hasResolvedTipsRef = useRef(initialTips.length > 0);
   const subscribeToChatState = useCallback(
     (onStoreChange: () => void) => {
       if (typeof window === "undefined") {
@@ -127,6 +137,9 @@ export function TaskTipsAssistant({
         .slice(0, 3),
     [tips],
   );
+  const answerPreview = isChatOpen ? latestChatAnswer || initialAnswer || "" : initialAnswer || "";
+  const hasInitialInsightsResponse =
+    initialTips.length > 0 || tipsStatus === "idle" || tipsStatus === "error";
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -140,9 +153,15 @@ export function TaskTipsAssistant({
 
   useEffect(() => {
     if (initialTips.length > 0) {
+      hasResolvedTipsRef.current = true;
       return;
     }
 
+    if (hasRequestedInitialTipsRef.current) {
+      return;
+    }
+
+    hasRequestedInitialTipsRef.current = true;
     void generateTips();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTips.length]);
@@ -181,42 +200,43 @@ export function TaskTipsAssistant({
   async function generateTips() {
     setTipsStatus("loading");
     setTipsError(null);
+    setLatestChatAnswer(null);
 
     if (typeof window !== "undefined") {
       const cachedTips = readCachedTips(tipsCacheKey);
       if (cachedTips.length > 0) {
+        hasResolvedTipsRef.current = true;
         setTips(cachedTips);
         setTipsStatus("idle");
         return;
       }
     }
 
-    const response = await fetch("/api/ai/task-insights", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        taskId,
-        title,
-        description: description ?? undefined,
-        starterStep,
-        aiProvider,
-        localModel: localModel ?? undefined,
-      }),
+    const { ok, data } = await fetchTaskInsightsOnce({
+      taskId,
+      title,
+      description: description ?? undefined,
+      starterStep,
+      aiProvider,
+      localModel: localModel ?? undefined,
     });
 
-    const data = (await response.json().catch(() => ({}))) as TaskInsightsResponse;
-
-    if (!response.ok) {
+    if (!ok) {
       setTipsStatus("error");
       setTipsError(data.error ?? "Could not generate getting-started tips.");
       return;
     }
 
     if (Array.isArray(data.tips) && data.tips.length > 0) {
+      if (hasResolvedTipsRef.current) {
+        setTipsStatus("idle");
+        return;
+      }
+
+      hasResolvedTipsRef.current = true;
       setTips(data.tips);
       setTipsStatus("idle");
+      setInitialAnswer((data.answer ?? "").trim() || null);
       if (typeof window !== "undefined") {
         window.localStorage.setItem(tipsCacheKey, JSON.stringify(data.tips.slice(0, 3)));
       }
@@ -281,6 +301,7 @@ export function TaskTipsAssistant({
 
     const answer = (data.answer ?? "").trim();
     if (answer.length > 0) {
+      setLatestChatAnswer(answer);
       updateChatState((current) => ({
         ...current,
         messages: [...current.messages, { role: "assistant", content: answer }],
@@ -323,7 +344,29 @@ export function TaskTipsAssistant({
         </Stack>
       ) : null}
 
-      {!isChatOpen ? (
+      {answerPreview && !isChatOpen ? (
+        <Paper variant="outlined" sx={{ p: 1.5, bgcolor: "background.default" }}>
+          <Stack spacing={1.5} alignItems="flex-start">
+            <Typography variant="body2" color="text.secondary" whiteSpace="pre-wrap">
+              {answerPreview}
+            </Typography>
+            <Button
+              onClick={() => {
+                updateChatState((current) => ({
+                  ...current,
+                  isChatArchived: false,
+                  isChatOpen: true,
+                }));
+              }}
+              variant="outlined"
+            >
+              {isChatArchived ? "Open Archived Chat" : "Ask More"}
+            </Button>
+          </Stack>
+        </Paper>
+      ) : null}
+
+      {!answerPreview && !isChatOpen && hasInitialInsightsResponse ? (
         <Box>
           <Button
             onClick={() => {
@@ -335,7 +378,7 @@ export function TaskTipsAssistant({
             }}
             variant="outlined"
           >
-            {isChatArchived ? "Open Archived Chat" : "Learn More"}
+            {isChatArchived ? "Open Archived Chat" : "Ask"}
           </Button>
         </Box>
       ) : null}
@@ -434,6 +477,45 @@ export function TaskTipsAssistant({
       ) : null}
     </Stack>
   );
+}
+
+async function fetchTaskInsightsOnce(input: {
+  taskId: string;
+  title: string;
+  description?: string;
+  starterStep: string;
+  aiProvider: TaskAiProviderValue;
+  localModel?: LocalAiModelValue;
+}): Promise<TaskInsightsFetchResult> {
+  const requestKey = JSON.stringify(input);
+  const existingRequest = taskInsightsRequestCache.get(requestKey);
+  if (existingRequest) {
+    return existingRequest;
+  }
+
+  const request = (async (): Promise<TaskInsightsFetchResult> => {
+    const response = await fetch("/api/ai/task-insights", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    });
+
+    const data = (await response.json().catch(() => ({}))) as TaskInsightsResponse;
+    return {
+      ok: response.ok,
+      data,
+    };
+  })();
+
+  taskInsightsRequestCache.set(requestKey, request);
+
+  try {
+    return await request;
+  } finally {
+    taskInsightsRequestCache.delete(requestKey);
+  }
 }
 
 function readCachedTips(cacheKey: string): string[] {

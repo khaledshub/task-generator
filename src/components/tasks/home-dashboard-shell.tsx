@@ -257,9 +257,6 @@ export function HomeDashboardShell({
                   Pick my task
                 </Typography>
               </Stack>
-              <Typography sx={{ color: "rgba(255,255,255,0.9)" }}>
-                Choose a task based on your current context, energy, and time.
-              </Typography>
               <Typography variant="subtitle1" fontWeight={700} sx={{ pt: 0.5 }}>
                 Feeling today
               </Typography>

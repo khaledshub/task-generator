@@ -1,8 +1,12 @@
-import { Chip, CircularProgress, Divider, Paper, Stack, Typography, Button } from "@mui/material";
+import { Alert, Button, Chip, CircularProgress, Divider, Paper, Stack, Typography } from "@mui/material";
 import { PickAction } from "@prisma/client";
 import { notFound } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { requireSessionUserId } from "@/lib/auth/session";
+import {
+  getAiPendingStaleMessage,
+  isAiPendingStale,
+} from "@/lib/tasks/ai-lifecycle";
 import { TASK_CONTEXT_LABELS, TASK_ENERGY_LABELS, TASK_TYPE_LABELS } from "@/lib/tasks/config";
 import { toStringArray } from "@/lib/tasks/types";
 import { Checklist } from "@/components/tasks/checklist";
@@ -41,6 +45,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
         aiStepsGenerationStatus: true,
         aiProvider: true,
         isArchived: true,
+        updatedAt: true,
       },
     }),
     prisma.pickEvent.findMany({
@@ -63,6 +68,10 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
   const tips = toStringArray(task.tips);
   const isChecklistGenerating =
     task.generateAiStepsEnabled && task.aiStepsGenerationStatus === "PENDING";
+  const isChecklistGenerationStale = isAiPendingStale(
+    task.aiStepsGenerationStatus,
+    task.updatedAt,
+  );
   const checklistItemsForTracking =
     checklistItems.length > 0
       ? checklistItems
@@ -72,7 +81,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
 
   return (
     <Stack spacing={3}>
-      <TaskAiPendingWatcher isPending={isChecklistGenerating} />
+      <TaskAiPendingWatcher isPending={isChecklistGenerating && !isChecklistGenerationStale} />
       <Paper
         sx={{
           p: 2.5,
@@ -129,7 +138,16 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
           <Divider />
 
           <Typography variant="h6">Checklist</Typography>
-          {isChecklistGenerating ? (
+          {isChecklistGenerationStale ? (
+            <Stack spacing={1}>
+              <Alert severity="warning">
+                {getAiPendingStaleMessage()}
+              </Alert>
+              <Typography color="text.secondary">
+                The task is still available. You can work from the starter step below while AI checklist recovery is pending.
+              </Typography>
+            </Stack>
+          ) : isChecklistGenerating ? (
             <Stack direction="row" spacing={1} alignItems="center">
               <CircularProgress size={16} />
               <Typography color="text.secondary">

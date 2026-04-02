@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth/options";
+import {
+  getAiPendingStaleMessage,
+  isAiPendingStale,
+} from "@/lib/tasks/ai-lifecycle";
 
 interface TaskAiStatusRouteContext {
   params: Promise<{
@@ -25,6 +29,7 @@ export async function GET(_request: Request, context: TaskAiStatusRouteContext) 
     },
     select: {
       aiStepsGenerationStatus: true,
+      updatedAt: true,
     },
   });
 
@@ -32,7 +37,14 @@ export async function GET(_request: Request, context: TaskAiStatusRouteContext) 
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
+  const isStalePending = isAiPendingStale(
+    task.aiStepsGenerationStatus,
+    task.updatedAt,
+  );
+
   return NextResponse.json({
     aiStepsGenerationStatus: task.aiStepsGenerationStatus,
+    isStalePending,
+    message: isStalePending ? getAiPendingStaleMessage() : undefined,
   });
 }

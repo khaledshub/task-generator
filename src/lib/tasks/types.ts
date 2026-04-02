@@ -30,6 +30,13 @@ export interface TaskFormState {
   };
 }
 
+export type TaskCreationLifecycleState =
+  | "idle"
+  | "created"
+  | "ai_pending"
+  | "ai_success"
+  | "ai_error";
+
 export interface TaskFormValues {
   title: string;
   description: string;

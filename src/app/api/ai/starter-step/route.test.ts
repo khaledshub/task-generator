@@ -69,6 +69,34 @@ describe("AI starter step route", () => {
     vi.clearAllMocks();
   });
 
+  it("rejects localModel when aiProvider is not LOCAL", async () => {
+    getServerSessionMock.mockResolvedValue({ user: { id: "user-1" } });
+
+    const { POST } = await import("./route");
+    const response = await POST(
+      new Request("http://localhost/api/ai/starter-step", {
+        method: "POST",
+        body: JSON.stringify({
+          taskId: "task-12345",
+          title: "Write report",
+          aiProvider: "OPENAI",
+          localModel: "gpt-oss:20b",
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      result: "error",
+      error: "Local model requires aiProvider to be LOCAL.",
+    });
+    expect(prismaMock.task.findFirst).not.toHaveBeenCalled();
+    expect(generateStarterStepMock).not.toHaveBeenCalled();
+  });
+
   it("reuses existing generated task data when AI status is READY", async () => {
     getServerSessionMock.mockResolvedValue({ user: { id: "user-1" } });
     prismaMock.task.findFirst.mockResolvedValue({

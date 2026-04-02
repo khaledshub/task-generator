@@ -20,7 +20,7 @@ TG-002 — Review race-safety of in-flight claim mechanism
 
 Area: AI lifecycle / concurrency
 Priority: P0
-Status: Todo
+Status: Implemented / Needs review
 Why it matters: Current idempotency may still be unsafe if two requests race before the claim is persisted.
 Questions to answer:
 	•	Is the AiStarterStepRequest uniqueness actually DB-enforced?
@@ -31,7 +31,7 @@ TG-003 — Decide update semantics for existing READY AI content
 
 Area: AI lifecycle / product behavior
 Priority: P0
-Status: Todo
+Status: Implemented / Needs review
 Why it matters: Updating a task may unintentionally reset good generated content.
 Decision needed:
 	•	On edit, when should AI regenerate?
@@ -42,7 +42,7 @@ TG-004 — Client duplicate-trigger cleanup
 
 Area: AI orchestration / client state
 Priority: P0
-Status: Todo
+Status: Implemented / Needs follow-up
 Why it matters: Prevents rerenders, modal reopen, or repeated submits from creating duplicate AI calls or confusing UI.
 Likely files:
 	•	src/components/tasks/task-form.tsx
@@ -52,7 +52,7 @@ TG-005 — Stale PENDING recovery strategy
 
 Area: AI lifecycle / operational resilience
 Priority: P0
-Status: Todo
+Status: Implemented / Needs review
 Why it matters: Even if future flows are better, previously stuck or mid-crash tasks may remain PENDING.
 Scope options:
 	•	detect stale PENDING
@@ -67,7 +67,7 @@ TG-006 — Focused server-side AI lifecycle tests
 
 Area: Testing
 Priority: P1
-Status: Todo
+Status: Implemented / Needs review
 Why it matters: Current high-value lifecycle logic should be protected by focused tests, not just smoke coverage.
 Test targets:
 	•	AI enabled => PENDING
@@ -81,19 +81,23 @@ TG-007 — Client-side AI flow tests / E2E assertions
 
 Area: Testing / UX reliability
 Priority: P1
-Status: Todo
+Status: Partially implemented / Needs follow-up
 Why it matters: Verifies that visible UI behavior matches server truth.
 Potential scope:
 	•	AI-on task create flow
 	•	AI failure path
 	•	duplicate-trigger resistance
 	•	polling settles into stable visible state
+Follow-up note:
+	•	current smoke spec uncovered test-harness drift in signup/login and create-task selectors
+	•	`Generate todo steps` switch accessibility needed repair before E2E targeting was reliable
+	•	remaining Playwright flow still needs a focused pass after the harness/setup cleanup
 
 TG-008 — Validation consistency across AI routes and task flows
 
 Area: Validation / correctness
 Priority: P1
-Status: Todo
+Status: Implemented / Needs review
 Why it matters: Ensures task creation, AI trigger, and AI status APIs all enforce compatible assumptions.
 Things to check:
 	•	provider values
@@ -106,7 +110,7 @@ TG-009 — Route response contract consistency
 
 Area: API contracts
 Priority: P1
-Status: Todo
+Status: Implemented / Needs review
 Why it matters: Client components need predictable response shapes for READY, FAILED, PENDING, and idempotent/no-op cases.
 Scope:
 	•	audit current response payloads
@@ -121,7 +125,7 @@ TG-010 — Polling and status synchronization cleanup
 
 Area: AI status UX
 Priority: P1
-Status: Todo
+Status: Implemented / Needs follow-up
 Why it matters: Current AI flow is split across client fetch + polling; easy place for drift.
 Goals:
 	•	one clear owner for status messaging
@@ -132,7 +136,7 @@ TG-011 — Task creation UX reliability under AI failure
 
 Area: UX resilience
 Priority: P1
-Status: Todo
+Status: Implemented / Needs follow-up
 Why it matters: Task creation must remain successful and understandable even if AI enrichment fails.
 Scope:
 	•	clearer message hierarchy
@@ -143,7 +147,7 @@ TG-012 — Create vs edit AI behavior consistency
 
 Area: UX / workflow consistency
 Priority: P1
-Status: Todo
+Status: Implemented / Needs follow-up
 Why it matters: Same AI option should behave consistently whether user creates or edits a task.
 Questions:
 	•	do both paths trigger AI the same way?
@@ -158,7 +162,7 @@ TG-013 — Reduce split ownership between TaskForm and HomeCreateTaskSpotlight
 
 Area: Maintainability / client architecture
 Priority: P2
-Status: Todo
+Status: Implemented / Needs follow-up
 Why it matters: Duplicate orchestration logic causes drift and makes debugging harder.
 Goal:
 	•	one clear owner for AI follow-up orchestration

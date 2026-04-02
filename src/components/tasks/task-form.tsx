@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   Alert,
@@ -32,6 +32,10 @@ import {
   TASK_TYPES,
   TASK_TYPE_LABELS,
 } from "@/lib/tasks/config";
+import {
+  toPolledAiState,
+} from "@/components/tasks/ai-status";
+import { useTaskAiOrchestration } from "@/components/tasks/use-task-ai-orchestration";
 import type { TaskFormState, TaskFormValues } from "@/lib/tasks/types";
 
 interface TaskFormProps {
@@ -43,6 +47,9 @@ interface TaskFormProps {
   submitLabel: string;
   onStateChange?: (state: TaskFormState) => void;
   mode?: "create" | "edit";
+  externalAiState?: Pick<TaskFormState, "aiStatus" | "aiMessage">;
+  onRetryAi?: () => void;
+  disableSubmit?: boolean;
 }
 
 const INITIAL_STATE: TaskFormState = { statusState: "idle" };
@@ -53,12 +60,11 @@ export function TaskForm({
   submitLabel,
   onStateChange,
   mode = "edit",
+  externalAiState,
+  onRetryAi,
+  disableSubmit = false,
 }: TaskFormProps) {
   const [state, formAction] = useActionState(action, INITIAL_STATE);
-  const [localAiStatus, setLocalAiStatus] = useState<TaskFormState["aiStatus"]>();
-  const [localAiMessage, setLocalAiMessage] = useState<string>();
-  const [lastAiTaskId, setLastAiTaskId] = useState<string>();
-  const aiRequestKeyRef = useRef<string | null>(null);
   const [isGenerateStepsEnabled, setIsGenerateStepsEnabled] = useState(
     initialValues.generateAiStepsEnabled,
   );
@@ -72,98 +78,44 @@ export function TaskForm({
   const defaultTipsText = initialValues.tips.join("\n");
   const nonDefaultTipsText = removeDefaultTips(initialValues.tips).join("\n");
   const isCreateMode = mode === "create";
+  const orchestration = useTaskAiOrchestration({
+    baseState: state,
+    context: "edit",
+    enabled: !isCreateMode,
+  });
 
   useEffect(() => {
-    const request = state.aiGenerationRequest;
-    if (!request || state.statusState !== "success" || isCreateMode) {
+    if (!orchestration.generatedTips || orchestration.generatedTips.length === 0) {
       return;
     }
 
-    const requestKey = `${request.taskId}:${request.aiProvider}`;
-    if (aiRequestKeyRef.current === requestKey) {
-      return;
-    }
-    aiRequestKeyRef.current = requestKey;
+    const timer = setTimeout(() => {
+      setTipsValue(orchestration.generatedTips?.join("\n") ?? "");
+    }, 0);
 
-    void (async () => {
-      setLocalAiStatus("info");
-      const sourceLabel =
-        request.aiProvider === "LOCAL" && request.localModel
-          ? `${TASK_AI_PROVIDER_LABELS[request.aiProvider]} (${request.localModel})`
-          : TASK_AI_PROVIDER_LABELS[request.aiProvider];
-      setLocalAiMessage(`Generating AI tips with ${sourceLabel}...`);
-      setLastAiTaskId(request.taskId);
-
-      try {
-        const response = await fetch("/api/ai/starter-step", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(request),
-        });
-
-        const data = (await response.json().catch(() => ({}))) as {
-          result?: "ready" | "in_progress" | "error";
-          aiStepsGenerationStatus?: "PENDING" | "READY" | "FAILED";
-          message?: string;
-          error?: string;
-          tips?: string[];
-        };
-
-        if (!response.ok) {
-          setLocalAiStatus("error");
-          setLocalAiMessage(
-            data.error ??
-              `AI generation failed after task save (${TASK_AI_PROVIDER_LABELS[request.aiProvider]}).`,
-          );
-          return;
-        }
-
-        if (data.result === "in_progress" || data.aiStepsGenerationStatus === "PENDING") {
-          setLocalAiStatus("info");
-          setLocalAiMessage(
-            data.message ??
-              `AI generation is still in progress (${TASK_AI_PROVIDER_LABELS[request.aiProvider]}).`,
-          );
-          return;
-        }
-
-        if (Array.isArray(data.tips) && data.tips.length > 0) {
-          setTipsValue(data.tips.join("\n"));
-        }
-
-        setLocalAiStatus("success");
-        const successSourceLabel =
-          request.aiProvider === "LOCAL" && request.localModel
-            ? `${TASK_AI_PROVIDER_LABELS[request.aiProvider]} (${request.localModel})`
-            : TASK_AI_PROVIDER_LABELS[request.aiProvider];
-        setLocalAiMessage(
-          `AI response ready. Tips were generated with ${successSourceLabel} and applied.`,
-        );
-      } catch (error) {
-        setLocalAiStatus("error");
-        setLocalAiMessage(
-          error instanceof Error
-            ? error.message
-            : `AI generation failed after task save (${TASK_AI_PROVIDER_LABELS[request.aiProvider]}).`,
-        );
-      }
-    })();
-  }, [isCreateMode, state.aiGenerationRequest, state.statusState]);
-
-  useEffect(() => {
-    const effectiveState: TaskFormState = {
-      ...state,
-      aiStatus: localAiStatus ?? state.aiStatus,
-      aiMessage: localAiMessage ?? state.aiMessage,
+    return () => {
+      clearTimeout(timer);
     };
+  }, [orchestration.generatedTips]);
 
-    onStateChange?.(effectiveState);
-  }, [localAiMessage, localAiStatus, onStateChange, state]);
+  useEffect(() => {
+    onStateChange?.(orchestration.enhancedState);
+  }, [onStateChange, orchestration.enhancedState]);
 
-  const aiTipsStatus = localAiStatus ?? state.aiStatus;
-  const aiTipsMessage = localAiMessage ?? state.aiMessage;
+  const aiTipsStatus =
+    externalAiState?.aiStatus ?? orchestration.enhancedState.aiStatus ?? state.aiStatus;
+  const aiTipsMessage =
+    externalAiState?.aiMessage ?? orchestration.enhancedState.aiMessage ?? state.aiMessage;
+  const aiTaskId = state.aiGenerationRequest?.taskId ?? state.createdTaskId;
+  const canRetryAi = aiTipsStatus === "error" && Boolean(isCreateMode ? onRetryAi : orchestration.retry);
+  const handleRetryAi = () => {
+    if (isCreateMode) {
+      onRetryAi?.();
+      return;
+    }
+
+    orchestration.retry();
+  };
 
   return (
     <form action={formAction}>
@@ -180,11 +132,11 @@ export function TaskForm({
           <Alert
             severity="success"
             action={
-              lastAiTaskId ? (
+              aiTaskId ? (
                 <Button
                   color="inherit"
                   size="small"
-                  href={`/app/tasks/${lastAiTaskId}`}
+                  href={`/app/tasks/${aiTaskId}`}
                   sx={{ fontWeight: 700 }}
                 >
                   Jump to task details
@@ -319,7 +271,9 @@ export function TaskForm({
                     return current;
                   });
                 }}
-                inputProps={{ "aria-label": "Generate todo steps" }}
+                slotProps={{
+                  input: { "aria-label": "Generate todo steps" },
+                }}
               />
             </Stack>
             <FormControl sx={{ minWidth: 180 }} size="small" disabled={!isGenerateStepsEnabled}>
@@ -392,7 +346,16 @@ export function TaskForm({
           />
         ) : null}
         {isGenerateStepsEnabled && aiTipsStatus !== "success" ? (
-          <Alert severity={aiTipsStatus ?? "info"}>
+          <Alert
+            severity={aiTipsStatus ?? "info"}
+            action={
+              canRetryAi ? (
+                <Button color="inherit" size="small" onClick={handleRetryAi}>
+                  Retry AI
+                </Button>
+              ) : undefined
+            }
+          >
             {aiTipsMessage ??
               `Tips will be generated with ${TASK_AI_PROVIDER_LABELS[aiProvider]} after you save.`}
           </Alert>
@@ -405,17 +368,18 @@ export function TaskForm({
           label="I am currently avoiding this task"
         />
 
-        <SubmitButton label={submitLabel} />
+        <SubmitButton label={submitLabel} disabled={disableSubmit} />
       </Stack>
     </form>
   );
 }
 
-function SubmitButton({ label }: { label: string }) {
+function SubmitButton({ label, disabled }: { label: string; disabled: boolean }) {
   const { pending } = useFormStatus();
+  const isDisabled = pending || disabled;
 
   return (
-    <Button type="submit" variant="contained" disabled={pending}>
+    <Button type="submit" variant="contained" disabled={isDisabled}>
       {pending ? "Saving..." : label}
     </Button>
   );
@@ -432,4 +396,10 @@ function toInitialTipsValue(initialTips: string[], isGenerateStepsEnabled: boole
 function removeDefaultTips(tips: string[]): string[] {
   const defaultTipSet = new Set(DEFAULT_TASK_TIPS.map((tip) => tip.trim().toLowerCase()));
   return tips.filter((tip) => !defaultTipSet.has(tip.trim().toLowerCase()));
+}
+
+export function toTaskFormPolledAiState(
+  status: "PENDING" | "READY" | "FAILED" | "SKIPPED",
+): Pick<TaskFormState, "aiStatus" | "aiMessage"> {
+  return toPolledAiState(status, "edit");
 }
