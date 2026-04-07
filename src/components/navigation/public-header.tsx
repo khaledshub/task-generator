@@ -1,7 +1,10 @@
 "use client";
 
-import { AppBar, Box, Button, Toolbar } from "@mui/material";
+import { AutoAwesomeRounded } from "@mui/icons-material";
+import { Box, Button, Stack, Toolbar, Typography } from "@mui/material";
 import { usePathname, useRouter } from "next/navigation";
+import { HeaderFrame } from "@/components/navigation/header-frame";
+import { getInteractiveFocusSx } from "@/theme/patterns";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", match: (pathname: string) => pathname === "/" },
@@ -25,66 +28,55 @@ export function PublicHeader() {
   }
 
   return (
-    <AppBar
-      position="sticky"
-      color="inherit"
-      elevation={0}
-      sx={{
-        bgcolor: "transparent",
-        border: "none",
-        boxShadow: "none",
-        px: { xs: 0.5, sm: 1.5, md: 2 },
-        pt: { xs: 0.5, sm: 1 },
-      }}
-    >
-      <Box
+    <HeaderFrame>
+      <Toolbar
         sx={{
-          width: { xs: "100%", lg: "75%" },
-          mx: "auto",
-          p: "2px",
-          borderRadius: 4,
-          border: "1px solid",
-          borderColor:
-            "color-mix(in srgb, var(--mui-palette-primary-main) 22%, transparent)",
-          bgcolor:
-            "color-mix(in srgb, var(--mui-palette-background-default) 68%, white 32%)",
-          backgroundImage:
-            "linear-gradient(165deg, color-mix(in srgb, var(--mui-palette-primary-main) 18%, transparent) 0%, color-mix(in srgb, var(--mui-palette-background-paper) 82%, transparent) 42%, color-mix(in srgb, var(--mui-palette-secondary-main) 14%, transparent) 100%)",
-          backdropFilter: "blur(14px)",
-          boxShadow:
-            "0 14px 30px color-mix(in srgb, var(--mui-palette-primary-main) 16%, transparent), 0 3px 10px color-mix(in srgb, black 14%, transparent), inset 0 1px 0 color-mix(in srgb, white 40%, transparent), inset 0 -1px 0 color-mix(in srgb, black 18%, transparent)",
-          position: "relative",
-          overflow: "hidden",
-          "&::before": {
-            content: "\"\"",
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(180deg, color-mix(in srgb, white 22%, transparent) 0%, transparent 42%)",
-            pointerEvents: "none",
-          },
-          "&::after": {
-            content: "\"\"",
-            position: "absolute",
-            left: "2%",
-            right: "2%",
-            bottom: 0,
-            height: 1,
-            background:
-              "linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--mui-palette-primary-main) 44%, transparent) 50%, transparent 100%)",
-            pointerEvents: "none",
-          },
+          gap: { xs: 1, sm: 2 },
+          justifyContent: "space-between",
+          py: { xs: 0.65, sm: 0.95 },
+          minHeight: { xs: "56px !important", sm: "68px !important" },
+          px: { xs: 1.2, sm: 1.75 },
         }}
       >
-        <Toolbar
-          sx={{
-            gap: { xs: 0.5, sm: 1 },
-            justifyContent: "center",
-            py: { xs: 0.4, sm: 0.8 },
-            minHeight: { xs: "44px !important", sm: "58px !important" },
-            px: { xs: 0.8, sm: 1.5 },
-          }}
+        <Stack
+          direction="row"
+          spacing={1.25}
+          alignItems="center"
+          sx={{ minWidth: 0, cursor: "pointer" }}
+          onClick={() => router.push("/")}
         >
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center",
+              background: "linear-gradient(135deg, rgba(173,198,255,0.26), rgba(76,215,246,0.18))",
+              color: "secondary.main",
+              border: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <AutoAwesomeRounded sx={{ fontSize: 20 }} />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography
+              sx={{
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontWeight: 800,
+                letterSpacing: "-0.04em",
+                lineHeight: 1,
+              }}
+            >
+              Task Generator
+            </Typography>
+            <Typography sx={{ color: "text.secondary", fontSize: "0.72rem", lineHeight: 1.1 }}>
+              Celestial Navigator
+            </Typography>
+          </Box>
+        </Stack>
+
+        <Stack direction="row" spacing={0.8} useFlexGap flexWrap="wrap" justifyContent="flex-end">
           {NAV_ITEMS.map((item) => {
             const isActive = item.match(pathname);
             return (
@@ -92,24 +84,26 @@ export function PublicHeader() {
                 key={item.href}
                 aria-current={isActive ? "page" : undefined}
                 size="small"
-                variant={isActive ? "contained" : "outlined"}
+                variant={isActive ? "contained" : "text"}
                 color={isActive ? "primary" : "inherit"}
                 onClick={() => router.push(toCanonicalPath(item.href))}
-                sx={{
-                  borderRadius: 999,
-                  fontSize: { xs: "0.72rem", sm: "0.84rem" },
-                  py: { xs: 0.35, sm: 0.62 },
-                  px: { xs: 1.15, sm: 1.55 },
-                  minHeight: { xs: 28, sm: 34 },
+                sx={(theme) => ({
+                  ...getInteractiveFocusSx(theme),
+                  borderRadius: theme.app.radius.pill,
+                  fontSize: { xs: "0.74rem", sm: "0.86rem" },
+                  py: { xs: 0.4, sm: 0.72 },
+                  px: { xs: 1.2, sm: 1.65 },
+                  minHeight: { xs: 30, sm: 36 },
                   lineHeight: 1.1,
-                }}
+                  color: isActive ? undefined : "text.secondary",
+                })}
               >
                 {item.label}
               </Button>
             );
           })}
-        </Toolbar>
-      </Box>
-    </AppBar>
+        </Stack>
+      </Toolbar>
+    </HeaderFrame>
   );
 }

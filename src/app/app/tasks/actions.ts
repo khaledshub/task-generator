@@ -6,6 +6,11 @@ import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import { requireSessionUserId } from "@/lib/auth/session";
 import { logger } from "@/lib/logger";
+import {
+  resolveInitialAiStatus,
+  resolveUpdateAiBehavior,
+  type AiStepsGenerationStatus,
+} from "@/lib/tasks/ai-lifecycle";
 import type { TaskFormState } from "@/lib/tasks/types";
 import { LOCAL_AI_MODELS } from "@/lib/tasks/config";
 import { taskFormDataToInput } from "@/lib/validation/task";
@@ -266,7 +271,7 @@ async function createTaskRecord({
       data: {
         userId,
         ...input,
-        aiStepsGenerationStatus: input.generateAiStepsEnabled ? "PENDING" : "SKIPPED",
+        aiStepsGenerationStatus: resolveInitialAiStatus(input.generateAiStepsEnabled),
       },
       select: {
         id: true,
@@ -322,7 +327,7 @@ async function loadExistingTaskForUpdate(taskId: string, userId: string): Promis
   id: string;
   generateAiStepsEnabled?: boolean;
   aiProvider?: "OPENAI" | "LOCAL";
-  aiStepsGenerationStatus?: "PENDING" | "READY" | "FAILED" | "SKIPPED";
+  aiStepsGenerationStatus?: AiStepsGenerationStatus;
 } | null> {
   try {
     return await prisma.task.findFirst({
@@ -366,39 +371,6 @@ async function loadExistingTaskForUpdate(taskId: string, userId: string): Promis
         }
       : null;
   }
-}
-
-function resolveUpdateAiBehavior(
-  existingTask: {
-    generateAiStepsEnabled?: boolean;
-    aiProvider?: "OPENAI" | "LOCAL";
-    aiStepsGenerationStatus?: "PENDING" | "READY" | "FAILED" | "SKIPPED";
-  },
-  input: ReturnType<typeof taskFormDataToInput>,
-): {
-  nextStatus: "PENDING" | "READY" | "FAILED" | "SKIPPED";
-  shouldTriggerGeneration: boolean;
-} {
-  if (!input.generateAiStepsEnabled) {
-    return {
-      nextStatus: "SKIPPED",
-      shouldTriggerGeneration: false,
-    };
-  }
-
-  const currentStatus = existingTask.aiStepsGenerationStatus ?? "SKIPPED";
-  const currentProvider = existingTask.aiProvider ?? "LOCAL";
-  const wasAiEnabled = existingTask.generateAiStepsEnabled === true;
-  const shouldTriggerGeneration =
-    !wasAiEnabled ||
-    currentProvider !== input.aiProvider ||
-    currentStatus === "FAILED" ||
-    currentStatus === "SKIPPED";
-
-  return {
-    nextStatus: shouldTriggerGeneration ? "PENDING" : currentStatus,
-    shouldTriggerGeneration,
-  };
 }
 
 function isAiSchemaColumnMissingError(error: unknown): boolean {

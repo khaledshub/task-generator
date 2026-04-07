@@ -1,9 +1,12 @@
 "use client";
 
-import { AppBar, Box, Button, Stack, Toolbar } from "@mui/material";
+import { AutoAwesomeRounded } from "@mui/icons-material";
+import { Box, Button, Stack, Toolbar } from "@mui/material";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { HeaderFrame } from "@/components/navigation/header-frame";
 import { LogoutButton } from "@/components/logout-button";
+import { getInteractiveFocusSx } from "@/theme/patterns";
 
 interface AppHeaderProps {
   userEmail?: string | null;
@@ -70,146 +73,129 @@ export function AppHeader({ userEmail, isGuest = false }: AppHeaderProps) {
   }, []);
 
   return (
-    <AppBar
-      position="sticky"
-      color="inherit"
-      elevation={0}
-      sx={{
-        bgcolor: "transparent",
-        border: "none",
-        boxShadow: "none",
-        px: { xs: 0.5, sm: 1.5, md: 2 },
-        pt: { xs: 0.5, sm: 1 },
-        transition: "transform 220ms ease, opacity 220ms ease",
-        transform: isVisible ? "translateY(0)" : "translateY(-130%)",
-        opacity: isVisible ? 1 : 0,
-      }}
-    >
-      <Box
+    <HeaderFrame hidden={!isVisible}>
+      <Toolbar
         sx={{
-          width: { xs: "100%", lg: "75%" },
-          mx: "auto",
-          p: "2px",
-          borderRadius: 4,
-          border: "1px solid",
-          borderColor:
-            "color-mix(in srgb, var(--mui-palette-primary-main) 22%, transparent)",
-          bgcolor:
-            "color-mix(in srgb, var(--mui-palette-background-default) 68%, white 32%)",
-          backgroundImage:
-            "linear-gradient(165deg, color-mix(in srgb, var(--mui-palette-primary-main) 18%, transparent) 0%, color-mix(in srgb, var(--mui-palette-background-paper) 82%, transparent) 42%, color-mix(in srgb, var(--mui-palette-secondary-main) 14%, transparent) 100%)",
-          backdropFilter: "blur(14px)",
-          boxShadow:
-            "0 14px 30px color-mix(in srgb, var(--mui-palette-primary-main) 16%, transparent), 0 3px 10px color-mix(in srgb, black 14%, transparent), inset 0 1px 0 color-mix(in srgb, white 40%, transparent), inset 0 -1px 0 color-mix(in srgb, black 18%, transparent)",
-          position: "relative",
-          overflow: "hidden",
-          "&::before": {
-            content: "\"\"",
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(180deg, color-mix(in srgb, white 22%, transparent) 0%, transparent 42%)",
-            pointerEvents: "none",
-          },
-          "&::after": {
-            content: "\"\"",
-            position: "absolute",
-            left: "2%",
-            right: "2%",
-            bottom: 0,
-            height: 1,
-            background:
-              "linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--mui-palette-primary-main) 44%, transparent) 50%, transparent 100%)",
-            pointerEvents: "none",
-          },
+          gap: { xs: 1, sm: 1.4 },
+          alignItems: "center",
+          py: { xs: 0.6, sm: 1 },
+          minHeight: { xs: "58px !important", sm: "72px !important" },
+          px: { xs: 1.1, sm: 1.8 },
         }}
       >
-        <Toolbar
-          sx={{
-            gap: { xs: 0.6, sm: 1.25 },
-            alignItems: "center",
-            py: { xs: 0.45, sm: 1 },
-            minHeight: { xs: "46px !important", sm: "64px !important" },
-            px: { xs: 1, sm: 2 },
-          }}
-        >
-          <Box sx={{ flexGrow: 1 }}>
+        <Stack direction="row" spacing={1.2} alignItems="center" sx={{ minWidth: 0 }}>
+          <Box
+            sx={{
+              width: { xs: 36, sm: 40 },
+              height: { xs: 36, sm: 40 },
+              borderRadius: "50%",
+              display: "grid",
+              placeItems: "center",
+              background: "linear-gradient(135deg, rgba(173,198,255,0.26), rgba(76,215,246,0.18))",
+              color: "secondary.main",
+              border: "1px solid rgba(255,255,255,0.08)",
+              flexShrink: 0,
+            }}
+          >
+            <AutoAwesomeRounded sx={{ fontSize: 20 }} />
+          </Box>
+          <Box sx={{ display: { xs: "none", md: "block" }, minWidth: 0 }}>
             <Box
+              component="button"
+              type="button"
+              onClick={() => router.push("/app")}
               sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(4, minmax(0, 1fr))" },
-                gap: { xs: 0.55, sm: 1 },
+                all: "unset",
+                cursor: "pointer",
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontWeight: 800,
+                letterSpacing: "-0.04em",
+                display: "block",
               }}
             >
+              Task Generator
+            </Box>
+            <Box sx={{ color: "text.secondary", fontSize: "0.74rem", lineHeight: 1.1 }}>
+              Celestial workspace
+            </Box>
+          </Box>
+        </Stack>
+
+        <Box sx={{ flexGrow: 1 }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "repeat(4, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
+              gap: { xs: 0.55, sm: 0.9 },
+            }}
+          >
               {NAV_ITEMS.map((item) => {
                 const isActive = item.match(pathname);
 
                 return (
-                <Button
-                  key={item.href}
-                  aria-current={isActive ? "page" : undefined}
-                  size="small"
-                  variant={isActive ? "contained" : "outlined"}
-                  color={isActive ? "primary" : "inherit"}
-                  onClick={() => {
-                    router.push(toCanonicalPath(item.href));
-                  }}
-                  sx={{
-                    width: "100%",
-                    borderRadius: 999,
-                    fontSize: { xs: "0.62rem", sm: "0.8rem" },
-                    py: { xs: 0.22, sm: 0.65 },
-                    px: { xs: 0.5, sm: 1.1 },
-                    minHeight: { xs: 26, sm: 36 },
-                    lineHeight: 1.1,
-                  }}
-                >
-                  {item.label}
-                </Button>
+                  <Button
+                    key={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    size="small"
+                    variant={isActive ? "contained" : "text"}
+                    color={isActive ? "primary" : "inherit"}
+                    onClick={() => {
+                      router.push(toCanonicalPath(item.href));
+                    }}
+                    sx={(theme) => ({
+                      ...getInteractiveFocusSx(theme),
+                      width: "100%",
+                      borderRadius: theme.app.radius.pill,
+                      fontSize: { xs: "0.68rem", sm: "0.83rem" },
+                      py: { xs: 0.45, sm: 0.75 },
+                      px: { xs: 0.5, sm: 1.1 },
+                      minHeight: { xs: 30, sm: 38 },
+                      lineHeight: 1.1,
+                      color: isActive ? undefined : "text.secondary",
+                    })}
+                  >
+                    {item.label}
+                  </Button>
                 );
               })}
-            </Box>
           </Box>
+        </Box>
 
-          <Stack spacing={{ xs: 0.4, sm: 0.6 }} alignItems="flex-end" sx={{ minWidth: 0 }}>
-            <Button
-              color="inherit"
-              variant="outlined"
-              size="small"
-              onClick={() => router.push(toCanonicalPath("/app/user"))}
-              sx={{
-                border: "1px solid",
-                borderColor:
-                  "color-mix(in srgb, var(--mui-palette-primary-main) 26%, transparent)",
-                background:
-                  "color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)",
-                fontWeight: 700,
-                display: { xs: "none", sm: "block" },
-                transition: "transform 140ms ease, box-shadow 140ms ease",
-                "&:hover": {
-                  transform: "translateY(-1px)",
-                  boxShadow:
-                    "0 6px 14px color-mix(in srgb, var(--mui-palette-primary-main) 20%, transparent)",
-                },
-                "&:focus-visible": {
-                  outline: "2px solid var(--mui-palette-primary-main)",
-                  outlineOffset: 2,
-                },
-                ...userActionButtonSx,
-              }}
-              title={userEmail ?? undefined}
-            >
-              {displayUserName}
-            </Button>
-            <LogoutButton
-              isGuest={isGuest}
-              sx={{
-                ...userActionButtonSx,
-              }}
-            />
-          </Stack>
-        </Toolbar>
-      </Box>
-    </AppBar>
+        <Stack spacing={{ xs: 0.4, sm: 0.6 }} alignItems="flex-end" sx={{ minWidth: 0 }}>
+          <Button
+            color="inherit"
+            variant="outlined"
+            size="small"
+            onClick={() => router.push(toCanonicalPath("/app/user"))}
+            sx={(theme) => ({
+              ...getInteractiveFocusSx(theme),
+              border: "1px solid",
+              borderColor:
+                "color-mix(in srgb, var(--mui-palette-primary-main) 26%, transparent)",
+              background:
+                "color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent)",
+              fontWeight: 700,
+              display: { xs: "none", sm: "block" },
+              transition: `transform ${theme.app.motion.duration.fast}ms ${theme.app.motion.easing.standard}, box-shadow ${theme.app.motion.duration.fast}ms ${theme.app.motion.easing.standard}`,
+              "&:hover": {
+                transform: "translateY(-1px)",
+                boxShadow:
+                  "0 6px 14px color-mix(in srgb, var(--mui-palette-primary-main) 20%, transparent)",
+              },
+              ...userActionButtonSx,
+            })}
+            title={userEmail ?? undefined}
+          >
+            {displayUserName}
+          </Button>
+          <LogoutButton
+            isGuest={isGuest}
+            sx={{
+              ...userActionButtonSx,
+            }}
+          />
+        </Stack>
+      </Toolbar>
+    </HeaderFrame>
   );
 }

@@ -1,19 +1,15 @@
 import {
   Button,
   Chip,
-  Paper,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import {
-  PickAction,
-  TaskContext,
-  TaskEnergy,
-  TaskFrequency,
-  TaskType,
-} from "@prisma/client";
-import prisma from "@/lib/prisma";
+import { PickAction } from "@prisma/client";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FilterToolbar } from "@/components/ui/filter-toolbar";
+import { ListSection } from "@/components/ui/list-section";
+import { PagePurposeHeader } from "@/components/ui/page-purpose-header";
 import { requireSessionUserId } from "@/lib/auth/session";
 import {
   TASK_CONTEXT_LABELS,
@@ -21,7 +17,8 @@ import {
   TASK_FREQUENCY_LABELS,
   TASK_TYPE_LABELS,
 } from "@/lib/tasks/config";
-import { PagePurposeHeader } from "@/components/ui/page-purpose-header";
+import { getTaskHistoryPageData } from "@/lib/tasks/queries";
+import { getInvertedFieldSx } from "@/theme/patterns";
 
 interface HistoryPageProps {
   searchParams: Promise<{
@@ -38,43 +35,12 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
   const fromDate = parseDate(from);
   const toDate = parseDate(to);
   const parsedLimit = parseLimit(limit);
-
-  const [tasks, totalTasks] = await Promise.all([
-    prisma.task.findMany({
-      where: {
-        userId,
-        createdAt: {
-          gte: fromDate ?? undefined,
-          lte: toDate ? endOfDay(toDate) : undefined,
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: parsedLimit,
-      select: {
-        id: true,
-        createdAt: true,
-        isArchived: true,
-        title: true,
-        description: true,
-        context: true,
-        energy: true,
-        type: true,
-        frequency: true,
-        timeEstimateMinutes: true,
-      },
-    }),
-    prisma.task.count({
-      where: {
-        userId,
-        createdAt: {
-          gte: fromDate ?? undefined,
-          lte: toDate ? endOfDay(toDate) : undefined,
-        },
-      },
-    }),
-  ]);
+  const { tasks, totalTasks, events } = await getTaskHistoryPageData({
+    userId,
+    fromDate,
+    toDate,
+    limit: parsedLimit,
+  });
 
   const nextLimit = getNextLimit(parsedLimit);
   const hasMore = totalTasks > parsedLimit && parsedLimit < 20;
@@ -97,91 +63,35 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           limit: String(nextLimit),
         }).toString()}`;
 
-  const events = await prisma.pickEvent.findMany({
-    where: {
-      userId,
-      pickedAt: {
-        gte: fromDate ?? undefined,
-        lte: toDate ? endOfDay(toDate) : undefined,
-      },
-    },
-    include: {
-      task: {
-        select: {
-          title: true,
-        },
-      },
-    },
-    orderBy: {
-      pickedAt: "desc",
-    },
-    take: 20,
-  });
-
   return (
-    <Stack spacing={3}>
+    <Stack spacing={3.5}>
       <PagePurposeHeader
         title="History"
         subtitle="Review task timeline and status events to track momentum and outcomes."
+        panelSx={{
+          borderRadius: { xs: 6, md: 999 },
+        }}
+        contentSx={{
+          px: { xs: 0.4, sm: 0.75, lg: 1.15 },
+          py: { xs: 0.45, sm: 0.6 },
+        }}
       />
 
-      <Paper
-        sx={{
-          p: 3,
-          position: "relative",
-          overflow: "hidden",
-          borderRadius: 3,
-          border: "1px solid rgba(255,255,255,0.26)",
-          background:
-            "linear-gradient(120deg, rgba(30,64,175,0.96), rgba(37,99,235,0.92), rgba(14,165,233,0.88))",
-          color: "common.white",
-          boxShadow: "0 22px 40px rgba(29,78,216,0.34)",
-          transition: "transform 220ms ease, box-shadow 220ms ease",
-          "@keyframes historyFilterGlowPulse": {
-            "0%": { opacity: 0.42, transform: "scale(0.96)" },
-            "50%": { opacity: 0.7, transform: "scale(1.03)" },
-            "100%": { opacity: 0.42, transform: "scale(0.96)" },
-          },
-          "&::before": {
-            content: '""',
-            position: "absolute",
-            inset: "-22%",
-            borderRadius: "50%",
-            background:
-              "radial-gradient(circle at center, rgba(191,219,254,0.25), rgba(125,211,252,0.2), transparent 66%)",
-            pointerEvents: "none",
-            animation: "historyFilterGlowPulse 4.5s ease-in-out infinite",
-          },
-          "&:hover": {
-            transform: "translateY(-3px) scale(1.01)",
-            boxShadow: "0 28px 52px rgba(29,78,216,0.42)",
-          },
+      <FilterToolbar
+        title="Filter timeline"
+        description="Limit the view by date range to inspect recent execution patterns."
+        formAction="/app/history"
+        panelSx={{
+          borderRadius: { xs: 6, md: 999 },
         }}
-      >
-        <Stack
-          component="form"
-          action="/app/history"
-          method="get"
-          spacing={2}
-          direction={{ xs: "column", sm: "row" }}
-          sx={{ position: "relative", zIndex: 1 }}
-        >
-          <TextField
-            label="From"
-            type="date"
-            defaultValue={from ?? ""}
-            name="from"
-            slotProps={{ inputLabel: { shrink: true } }}
-            sx={historyFilterFieldSx}
-          />
-          <TextField
-            label="To"
-            type="date"
-            defaultValue={to ?? ""}
-            name="to"
-            slotProps={{ inputLabel: { shrink: true } }}
-            sx={historyFilterFieldSx}
-          />
+        formSx={{
+          px: { xs: 0.5, sm: 0.8, lg: 1.1 },
+          py: { xs: 0.35, sm: 0.5 },
+        }}
+        fieldsSx={{
+          alignItems: { xs: "stretch", md: "center" },
+        }}
+        actions={
           <Button
             type="submit"
             variant="outlined"
@@ -189,6 +99,8 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
               color: "common.white",
               borderColor: "rgba(255,255,255,0.45)",
               fontWeight: 700,
+              minWidth: { xs: "100%", md: 112 },
+              alignSelf: { xs: "stretch", md: "center" },
               "&:hover": {
                 borderColor: "rgba(255,255,255,0.7)",
                 bgcolor: "rgba(255,255,255,0.12)",
@@ -197,86 +109,136 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
           >
             Filter
           </Button>
-        </Stack>
-      </Paper>
+        }
+      >
+        <TextField
+          label="From"
+          type="date"
+          defaultValue={from ?? ""}
+          name="from"
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={historyFilterFieldSx}
+        />
+        <TextField
+          label="To"
+          type="date"
+          defaultValue={to ?? ""}
+          name="to"
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={historyFilterFieldSx}
+        />
+      </FilterToolbar>
 
-      <Paper sx={{ p: 3 }}>
+      <ListSection
+        title={`Task history (${showCount} of ${totalTasks})`}
+        subtitle="Every task creation in the selected range, ordered newest first."
+        panelSx={{
+          borderRadius: { xs: 7, md: 999 },
+        }}
+        contentSx={{
+          px: { xs: 0.65, sm: 1, lg: 1.35 },
+          py: { xs: 0.4, sm: 0.6 },
+        }}
+        actions={
+          hasMore && showMoreHref ? (
+            <Button variant="outlined" href={showMoreHref}>
+              Show more
+            </Button>
+          ) : undefined
+        }
+      >
         <Stack spacing={2}>
-          <Typography variant="h6">
-            Task history ({showCount} of {totalTasks})
-          </Typography>
-
           {tasks.length === 0 ? (
-            <Typography color="text.secondary">No tasks found.</Typography>
+            <EmptyState
+              title="No tasks found"
+              description="Try a wider date range or wait for more activity."
+            />
           ) : (
-            <>
-              {tasks.map((task) => (
-                <Stack
-                  key={task.id}
-                  spacing={0.75}
-                  sx={{ borderBottom: "1px solid", borderColor: "divider", pb: 2 }}
-                >
-                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                    <Typography variant="body2" color="text.secondary">
-                      {task.createdAt.toLocaleString()}
-                    </Typography>
-                    {task.isArchived ? (
-                      <Chip size="small" color="warning" label="Archived" />
-                    ) : (
-                      <Chip size="small" color="success" label="Active" />
-                    )}
-                  </Stack>
-
-                  <Typography fontWeight={600}>{task.title}</Typography>
-                  {task.description ? (
-                    <Typography variant="body2" color="text.secondary">
-                      {task.description}
-                    </Typography>
-                  ) : null}
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    <Chip
-                      size="small"
-                      label={`Context: ${TASK_CONTEXT_LABELS[task.context as TaskContext]}`}
-                    />
-                    <Chip
-                      size="small"
-                      label={`Energy: ${TASK_ENERGY_LABELS[task.energy as TaskEnergy]}`}
-                    />
-                    <Chip
-                      size="small"
-                      label={`Type: ${TASK_TYPE_LABELS[task.type as TaskType]}`}
-                    />
-                    <Chip
-                      size="small"
-                      label={`Frequency: ${TASK_FREQUENCY_LABELS[task.frequency as TaskFrequency]}`}
-                    />
-                    <Chip size="small" label={`${task.timeEstimateMinutes} min`} />
-                  </Stack>
+            tasks.map((task) => (
+              <Stack
+                key={task.id}
+                spacing={1}
+                sx={{
+                  borderRadius: 4,
+                  px: { xs: 2, sm: 2.5, lg: 2.75 },
+                  py: { xs: 2, sm: 2.15 },
+                  bgcolor: "color-mix(in srgb, var(--mui-palette-background-paper) 82%, transparent)",
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                  <Typography variant="body2" color="text.secondary">
+                    {task.createdAt.toLocaleString()}
+                  </Typography>
+                  {task.isArchived ? (
+                    <Chip size="small" color="warning" label="Archived" />
+                  ) : (
+                    <Chip size="small" color="success" label="Active" />
+                  )}
                 </Stack>
-              ))}
 
-              {hasMore && showMoreHref ? (
-                <Button variant="outlined" href={showMoreHref} sx={{ alignSelf: "flex-start" }}>
-                  Show more
-                </Button>
-              ) : null}
-            </>
+                <Typography fontWeight={600}>{task.title}</Typography>
+                {task.description ? (
+                  <Typography variant="body2" color="text.secondary">
+                    {task.description}
+                  </Typography>
+                ) : null}
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Chip
+                    size="small"
+                    label={`Context: ${TASK_CONTEXT_LABELS[task.context]}`}
+                  />
+                  <Chip
+                    size="small"
+                    label={`Energy: ${TASK_ENERGY_LABELS[task.energy]}`}
+                  />
+                  <Chip
+                    size="small"
+                    label={`Type: ${TASK_TYPE_LABELS[task.type]}`}
+                  />
+                  <Chip
+                    size="small"
+                    label={`Frequency: ${TASK_FREQUENCY_LABELS[task.frequency]}`}
+                  />
+                  <Chip size="small" label={`${task.timeEstimateMinutes} min`} />
+                </Stack>
+              </Stack>
+            ))
           )}
         </Stack>
-      </Paper>
+      </ListSection>
 
-      <Paper sx={{ p: 3 }}>
+      <ListSection
+        title={`Recent events (${events.length})`}
+        subtitle="Outcome events attached to the picker workflow."
+        panelSx={{
+          borderRadius: { xs: 7, md: 999 },
+        }}
+        contentSx={{
+          px: { xs: 0.65, sm: 1, lg: 1.35 },
+          py: { xs: 0.4, sm: 0.6 },
+        }}
+      >
         <Stack spacing={2}>
-          <Typography variant="h6">Recent events ({events.length})</Typography>
-
           {events.length === 0 ? (
-            <Typography color="text.secondary">No events found.</Typography>
+            <EmptyState
+              title="No events found"
+              description="Once picks are started, completed, or skipped, the timeline will fill in here."
+            />
           ) : (
             events.map((event) => (
               <Stack
                 key={event.id}
-                spacing={0.75}
-                sx={{ borderBottom: "1px solid", borderColor: "divider", pb: 2 }}
+                spacing={1}
+                sx={{
+                  borderRadius: 4,
+                  px: { xs: 2, sm: 2.5, lg: 2.75 },
+                  py: { xs: 2, sm: 2.15 },
+                  bgcolor: "color-mix(in srgb, var(--mui-palette-background-paper) 82%, transparent)",
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
               >
                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                   <Chip
@@ -312,15 +274,9 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
             ))
           )}
         </Stack>
-      </Paper>
+      </ListSection>
     </Stack>
   );
-}
-
-function endOfDay(date: Date): Date {
-  const value = new Date(date);
-  value.setHours(23, 59, 59, 999);
-  return value;
 }
 
 function parseDate(value?: string): Date | null {
@@ -373,18 +329,4 @@ function toEventChipColor(action: PickAction): "info" | "primary" | "success" | 
   return "warning";
 }
 
-const historyFilterFieldSx = {
-  minWidth: { xs: "100%", sm: 180 },
-  "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.82)" },
-  "& .MuiInputLabel-root.Mui-focused": { color: "common.white" },
-  "& .MuiInputBase-input": { color: "common.white" },
-  "& .MuiOutlinedInput-notchedOutline": {
-    borderColor: "rgba(255,255,255,0.35)",
-  },
-  "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": {
-    borderColor: "rgba(255,255,255,0.6)",
-  },
-  "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline": {
-    borderColor: "rgba(255,255,255,0.8)",
-  },
-};
+const historyFilterFieldSx = getInvertedFieldSx();

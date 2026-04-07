@@ -8,7 +8,6 @@ import {
   FormControl,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   Stack,
   TextField,
@@ -17,6 +16,7 @@ import {
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Checklist } from "@/components/tasks/checklist";
+import { ActionPanel, FeaturePanel } from "@/components/ui/surface-panel";
 import {
   INTENT_CONTEXT_OPTIONS,
   INTENT_MODE_LABELS,
@@ -29,6 +29,7 @@ import {
   type SkippedReasonValue,
 } from "@/lib/picker/config";
 import { TASK_CONTEXT_LABELS } from "@/lib/tasks/config";
+import { getInvertedFieldSx } from "@/theme/patterns";
 
 interface PickResponse {
   status: "picked" | "no_match";
@@ -193,55 +194,13 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
   }
 
   return (
-    <Stack spacing={3}>
-      <Paper
-        sx={(theme) => {
-          const isDark = theme.palette.mode === "dark";
-          return {
-            p: 3,
-            position: "relative",
-            overflow: "hidden",
-            borderRadius: 3,
-            border: isDark
-              ? "1px solid rgba(148,163,184,0.26)"
-              : "1px solid rgba(255,255,255,0.26)",
-            background: isDark
-              ? "linear-gradient(120deg, rgba(15,23,42,0.98), rgba(30,64,175,0.9), rgba(8,145,178,0.85))"
-              : "linear-gradient(120deg, rgba(30,64,175,0.96), rgba(37,99,235,0.92), rgba(14,165,233,0.88))",
-            color: "common.white",
-            boxShadow: isDark
-              ? "0 22px 40px rgba(2,6,23,0.55)"
-              : "0 22px 40px rgba(29,78,216,0.34)",
-            transition: "transform 220ms ease, box-shadow 220ms ease",
-            "@keyframes pickFilterGlowPulse": {
-              "0%": { opacity: 0.42, transform: "scale(0.96)" },
-              "50%": { opacity: 0.7, transform: "scale(1.03)" },
-              "100%": { opacity: 0.42, transform: "scale(0.96)" },
-            },
-            "&::before": {
-              content: '""',
-              position: "absolute",
-              inset: "-22%",
-              borderRadius: "50%",
-              background:
-                "radial-gradient(circle at center, rgba(191,219,254,0.25), rgba(125,211,252,0.2), transparent 66%)",
-              pointerEvents: "none",
-              animation: "pickFilterGlowPulse 4.5s ease-in-out infinite",
-            },
-            "&:hover": {
-              transform: "translateY(-3px) scale(1.01)",
-              boxShadow: isDark
-                ? "0 28px 52px rgba(2,6,23,0.62)"
-                : "0 28px 52px rgba(29,78,216,0.42)",
-            },
-          };
-        }}
+    <Stack spacing={3.5}>
+      <ActionPanel
+        title="Refine your focus"
+        description="Set your current context and let the weighted picker choose one next move that fits the moment."
+        padding={{ xs: 2.75, sm: 3.25, lg: 3.5 }}
       >
-        <Stack spacing={2}>
-          <Typography variant="h5" component="h2" fontWeight={700}>
-            Feeling today
-          </Typography>
-
+        <Stack spacing={2.5}>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <FormControl fullWidth>
               <InputLabel
@@ -262,13 +221,7 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
                       : null,
                   )
                 }
-                sx={{
-                  color: "common.white",
-                  ".MuiOutlinedInput-notchedOutline": {
-                    borderColor: "rgba(255,255,255,0.35)",
-                  },
-                  "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.9)" },
-                }}
+                sx={invertedFieldSx}
               >
                 {INTENT_CONTEXT_OPTIONS.map((context) => (
                   <MenuItem key={context} value={context}>
@@ -297,13 +250,7 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
                       : null,
                   )
                 }
-                sx={{
-                  color: "common.white",
-                  ".MuiOutlinedInput-notchedOutline": {
-                    borderColor: "rgba(255,255,255,0.35)",
-                  },
-                  "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.9)" },
-                }}
+                sx={invertedFieldSx}
               >
                 {INTENT_MODE_OPTIONS.map((mode) => (
                   <MenuItem key={mode} value={mode}>
@@ -332,13 +279,7 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
                       : null,
                   )
                 }
-                sx={{
-                  color: "common.white",
-                  ".MuiOutlinedInput-notchedOutline": {
-                    borderColor: "rgba(255,255,255,0.35)",
-                  },
-                  "& .MuiSvgIcon-root": { color: "rgba(255,255,255,0.9)" },
-                }}
+                sx={invertedFieldSx}
               >
                 {INTENT_TIME_OPTIONS.map((minutes) => (
                   <MenuItem key={minutes} value={String(minutes)}>
@@ -356,29 +297,25 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
             sx={{
               alignSelf: "flex-start",
               fontWeight: 700,
-              bgcolor: "rgba(255,255,255,0.22)",
-              color: "common.white",
-              border: "1px solid rgba(255,255,255,0.34)",
-              "&:hover": {
-                bgcolor: "rgba(255,255,255,0.28)",
-              },
+              minWidth: { xs: "100%", sm: 220 },
+              minHeight: 56,
             }}
           >
             {isPicking ? "Picking..." : "Pick my task"}
           </Button>
         </Stack>
-      </Paper>
+      </ActionPanel>
 
       {error ? <Alert severity="error">{error}</Alert> : null}
       {feedback ? <Alert severity="success">{feedback}</Alert> : null}
 
       {isPicking ? (
-        <Paper sx={{ p: 3 }}>
+        <FeaturePanel title="Computing pick" description="Scoring tasks against your current constraints.">
           <Stack direction="row" spacing={1.5} alignItems="center">
             <CircularProgress size={20} />
             <Typography>Computing your weighted pick...</Typography>
           </Stack>
-        </Paper>
+        </FeaturePanel>
       ) : null}
 
       {pickResult?.status === "no_match" ?
@@ -386,18 +323,13 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
       : null}
 
       {pickResult?.status === "picked" && pickResult.task ? (
-        <Paper sx={{ p: 3 }}>
-          <Stack spacing={2}>
-            <Typography variant="h5" component="h2" fontWeight={700}>
-              {pickResult.task.title}
-            </Typography>
-
-            {pickResult.task.description ? (
-              <Typography color="text.secondary">
-                {pickResult.task.description}
-              </Typography>
-            ) : null}
-
+        <FeaturePanel
+          title={pickResult.task.title}
+          description={pickResult.task.description ?? undefined}
+          tone="spotlight"
+          padding={{ xs: 2.75, sm: 3.5 }}
+        >
+          <Stack spacing={2.5}>
             <Alert severity="success">
               Why this was picked: {pickResult.why}
             </Alert>
@@ -517,7 +449,7 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
               </Button>
             </Stack>
           </Stack>
-        </Paper>
+        </FeaturePanel>
       ) : null}
     </Stack>
   );
@@ -526,3 +458,5 @@ export function PickTaskPanel({ initialIntent }: PickTaskPanelProps) {
 function DividerLine() {
   return <Box sx={{ borderTop: "1px solid", borderColor: "divider" }} />;
 }
+
+const invertedFieldSx = getInvertedFieldSx();

@@ -7,6 +7,10 @@ import { authOptions } from "@/lib/auth/options";
 import { generateStarterStep } from "@/lib/ai/starter-step";
 import { logger } from "@/lib/logger";
 import {
+  getAiPendingDuplicateMessage,
+  resolveInitialAiStatus,
+} from "@/lib/tasks/ai-lifecycle";
+import {
   DEFAULT_TASK_TIPS,
   getDefaultTaskAiProvider,
   TASK_MAX_TIPS,
@@ -102,8 +106,8 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           result: AI_ROUTE_RESULT_IN_PROGRESS,
-          aiStepsGenerationStatus: "PENDING",
-          message: "AI generation is already in progress for this task.",
+          aiStepsGenerationStatus: resolveInitialAiStatus(true),
+          message: getAiPendingDuplicateMessage(),
         },
         { status: 202 },
       );
@@ -112,7 +116,7 @@ export async function POST(request: Request) {
     await prisma.task.update({
       where: { id: task.id },
       data: {
-        aiStepsGenerationStatus: "PENDING",
+        aiStepsGenerationStatus: resolveInitialAiStatus(true),
         aiProvider: resolvedAiProvider,
       },
     });

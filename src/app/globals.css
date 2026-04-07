@@ -25,6 +25,7 @@ body {
   position: relative;
   overflow-x: hidden;
   font-family: "Plus Jakarta Sans", "Space Grotesk", "Segoe UI", sans-serif;
+  background-attachment: fixed;
 }
 
 body::before,
@@ -37,29 +38,34 @@ body::after {
 }
 
 body::before {
-  top: -120px;
-  left: -180px;
+  top: -160px;
+  left: -220px;
   right: auto;
   bottom: auto;
-  width: 520px;
-  height: 520px;
+  width: 620px;
+  height: 620px;
   border-radius: 50%;
   background: radial-gradient(circle, var(--app-blob-left), transparent 68%);
-  filter: blur(16px);
+  filter: blur(28px);
   animation: blob-drift-left 16s ease-in-out infinite;
 }
 
 body::after {
   top: auto;
   left: auto;
-  right: -160px;
-  bottom: -180px;
-  width: 540px;
-  height: 540px;
+  right: -200px;
+  bottom: -220px;
+  width: 640px;
+  height: 640px;
   border-radius: 50%;
   background: radial-gradient(circle, var(--app-blob-right), transparent 70%);
-  filter: blur(20px);
+  filter: blur(28px);
   animation: blob-drift-right 18s ease-in-out infinite;
+}
+
+body > div[role="presentation"] {
+  position: relative;
+  z-index: 1;
 }
 
 #__next,

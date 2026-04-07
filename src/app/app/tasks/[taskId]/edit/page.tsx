@@ -46,16 +46,20 @@ export default async function EditTaskPage({ params }: EditTaskPageProps) {
   const updateAction = updateTaskAction.bind(null, task.id);
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={3.5}>
       <Paper
         sx={{
-          p: 2.5,
+          p: { xs: 3, sm: 3.5, lg: 4 },
+          borderRadius: 6,
           background:
-            "linear-gradient(130deg, color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent), color-mix(in srgb, var(--mui-palette-background-paper) 92%, white 8%))",
+            "radial-gradient(circle at top right, color-mix(in srgb, var(--mui-palette-secondary-main) 12%, transparent), transparent 28%), linear-gradient(130deg, color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent), color-mix(in srgb, var(--mui-palette-background-paper) 92%, white 8%))",
         }}
       >
-        <Stack spacing={1.5} alignItems="center" textAlign="center">
-          <Typography variant="h5" component="h1" fontWeight={700} textAlign="center">
+        <Stack spacing={1.5} alignItems="flex-start">
+          <Typography variant="overline" sx={{ letterSpacing: "0.2em", color: "secondary.main" }}>
+            Edit workflow
+          </Typography>
+          <Typography variant="h3" component="h1" fontWeight={800}>
             Edit task
           </Typography>
           <Typography color="text.secondary">{task.title}</Typography>
@@ -70,7 +74,7 @@ export default async function EditTaskPage({ params }: EditTaskPageProps) {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: { xs: 2.5, sm: 3.25 } }}>
         <TaskForm
           action={updateAction}
           initialValues={mapTaskToFormValues(task)}

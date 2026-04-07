@@ -5,9 +5,9 @@ import { AppProviders } from "@/components/app-providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TodoList RandomGenerator",
+  title: "Task Generator",
   description:
-    "A weighted-random task picker to help you start the right next action.",
+    "A weighted-random task picker that helps you commit to the best next action for your current context.",
 };
 
 export default async function RootLayout({

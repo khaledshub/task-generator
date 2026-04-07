@@ -1,8 +1,8 @@
-import { Box, Container } from "@mui/material";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { GuestSessionGuard } from "@/components/auth/guest-session-guard";
 import { AppHeader } from "@/components/navigation/app-header";
+import { AppShell } from "@/components/ui/app-shell";
 import { PageTransition } from "@/components/ui/page-transition";
 import { isGuestEmail, purgeExpiredGuestUsers } from "@/lib/auth/guest";
 import { authOptions } from "@/lib/auth/options";
@@ -20,13 +20,9 @@ export default async function ProtectedAppLayout({
   const isGuest = isGuestEmail(session.user.email);
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "transparent" }}>
-      <AppHeader userEmail={session.user.email} isGuest={isGuest} />
+    <AppShell header={<AppHeader userEmail={session.user.email} isGuest={isGuest} />}>
       {isGuest ? <GuestSessionGuard /> : null}
-
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <PageTransition>{children}</PageTransition>
-      </Container>
-    </Box>
+      <PageTransition>{children}</PageTransition>
+    </AppShell>
   );
 }

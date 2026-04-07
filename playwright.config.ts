@@ -18,7 +18,7 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_BASE_URL
     ? undefined
     : {
-        command: "npx prisma migrate reset --force && npm run db:seed && npm run dev",
+        command: "node scripts/playwright-webserver.mjs",
         url: baseURL,
         reuseExistingServer: false,
         timeout: 120_000,

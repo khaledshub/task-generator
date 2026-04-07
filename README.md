@@ -110,6 +110,8 @@ Default run:
 npm run test:e2e
 ```
 
+When Playwright auto-starts the app server, it resets and seeds the database through a local-only safety guard. If `DATABASE_URL` points at a non-local host, the run aborts unless you explicitly set `PLAYWRIGHT_UNSAFE_DB_RESET=1`.
+
 The smoke spec is gated by `RUN_E2E=1` to avoid false failures in environments without full DB/browser setup.
 
 Full smoke run example:

@@ -1,10 +1,14 @@
 import { TASK_AI_PROVIDER_LABELS } from "@/lib/tasks/config";
+import {
+  getAiFailureMessage,
+  getAiReadyMessage,
+  type AiStatusContext,
+  type AiStepsGenerationStatus,
+} from "@/lib/tasks/ai-lifecycle";
 import type { TaskFormState } from "@/lib/tasks/types";
 
-type AiTerminalStatus = "PENDING" | "READY" | "FAILED" | "SKIPPED";
-export type AiStatusContext = "create" | "edit";
-
 export type AiGenerationRequest = NonNullable<TaskFormState["aiGenerationRequest"]>;
+export type { AiStatusContext };
 
 export function toAiRequestKey(request?: TaskFormState["aiGenerationRequest"]): string | null {
   if (!request) {
@@ -32,20 +36,18 @@ export function toAiInProgressMessage(
 }
 
 export function toAiFailureMessage(context: AiStatusContext): string {
-  return context === "create"
-    ? "Task created, but AI generation failed. You can still open the task and continue without AI tips."
-    : "Task updated, but AI generation failed. You can still open the task and continue without AI tips.";
+  return getAiFailureMessage(context);
 }
 
 export function toPolledAiState(
-  status: AiTerminalStatus,
+  status: AiStepsGenerationStatus,
   context: AiStatusContext,
   currentState?: Pick<TaskFormState, "aiStatus" | "aiMessage">,
 ): Pick<TaskFormState, "aiStatus" | "aiMessage"> {
   if (status === "READY") {
     return {
       aiStatus: "success",
-      aiMessage: "AI tips are ready and available on the task details page.",
+      aiMessage: getAiReadyMessage(),
     };
   }
 

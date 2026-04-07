@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { requireSessionUserId } from "@/lib/auth/session";
 import {
   getAiPendingStaleMessage,
-  isAiPendingStale,
+  getTaskAiStatusSnapshot,
 } from "@/lib/tasks/ai-lifecycle";
 import { TASK_CONTEXT_LABELS, TASK_ENERGY_LABELS, TASK_TYPE_LABELS } from "@/lib/tasks/config";
 import { toStringArray } from "@/lib/tasks/types";
@@ -66,12 +66,13 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
 
   const checklistItems = toStringArray(task.checklistItems);
   const tips = toStringArray(task.tips);
-  const isChecklistGenerating =
-    task.generateAiStepsEnabled && task.aiStepsGenerationStatus === "PENDING";
-  const isChecklistGenerationStale = isAiPendingStale(
+  const aiStatusSnapshot = getTaskAiStatusSnapshot(
     task.aiStepsGenerationStatus,
     task.updatedAt,
   );
+  const isChecklistGenerating =
+    task.generateAiStepsEnabled && aiStatusSnapshot.isPending;
+  const isChecklistGenerationStale = aiStatusSnapshot.isStalePending;
   const checklistItemsForTracking =
     checklistItems.length > 0
       ? checklistItems
@@ -80,22 +81,28 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
         : [task.starterStep];
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={3.5}>
       <TaskAiPendingWatcher isPending={isChecklistGenerating && !isChecklistGenerationStale} />
       <Paper
         sx={{
-          p: 2.5,
+          p: { xs: 3, sm: 3.5, lg: 4 },
+          borderRadius: 6,
           background:
-            "linear-gradient(130deg, color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent), color-mix(in srgb, var(--mui-palette-background-paper) 92%, white 8%))",
+            "radial-gradient(circle at top right, color-mix(in srgb, var(--mui-palette-secondary-main) 12%, transparent), transparent 28%), linear-gradient(130deg, color-mix(in srgb, var(--mui-palette-primary-main) 10%, transparent), color-mix(in srgb, var(--mui-palette-background-paper) 92%, white 8%))",
         }}
       >
-        <Stack spacing={1.5} alignItems="center" textAlign="center">
-          <Typography variant="h5" component="h1" fontWeight={700} textAlign="center">
+        <Stack spacing={1.75} alignItems="flex-start">
+          <Typography variant="overline" sx={{ letterSpacing: "0.2em", color: "secondary.main" }}>
+            Task detail
+          </Typography>
+          <Typography variant="h3" component="h1" fontWeight={800}>
             {task.title}
           </Typography>
 
           {task.description ? (
-            <Typography color="text.secondary">{task.description}</Typography>
+            <Typography color="text.secondary" sx={{ maxWidth: 820 }}>
+              {task.description}
+            </Typography>
           ) : null}
 
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -130,7 +137,7 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: { xs: 2.5, sm: 3 } }}>
         <Stack spacing={2}>
           <Typography variant="h6">2-minute starter step</Typography>
           <Typography>{task.starterStep}</Typography>
@@ -177,11 +184,11 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
         </Stack>
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: { xs: 2.5, sm: 3 } }}>
         <TaskQuickActions taskId={task.id} />
       </Paper>
 
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: { xs: 2.5, sm: 3 } }}>
         <Stack spacing={1.5}>
           <Typography variant="h6">Latest pick history for this task</Typography>
           {events.length === 0 ? (
@@ -190,8 +197,15 @@ export default async function TaskDetailPage({ params }: TaskDetailPageProps) {
             events.map((event) => (
               <Stack
                 key={event.id}
-                spacing={0.5}
-                sx={{ borderBottom: "1px solid", borderColor: "divider", pb: 1.5 }}
+                spacing={0.75}
+                sx={{
+                  borderRadius: 4,
+                  px: { xs: 1.5, sm: 2 },
+                  py: 1.75,
+                  bgcolor: "color-mix(in srgb, var(--mui-palette-background-paper) 82%, transparent)",
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
               >
                 <Typography variant="body2" color="text.secondary">
                   {event.pickedAt.toLocaleString()}

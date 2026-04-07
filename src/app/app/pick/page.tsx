@@ -7,7 +7,7 @@ export default async function PickTaskPage() {
   await requireSessionUserId();
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={3.5}>
       <PagePurposeHeader
         title="Pick my task"
         subtitle="Set your current context and let the weighted picker choose one best next action."
